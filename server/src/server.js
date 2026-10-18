@@ -2,6 +2,7 @@
 import dotenv from "dotenv";
 import cors from "cors";
 import { connectDB } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 
@@ -21,6 +22,8 @@ app.get("/api/v1/health", (req, res) => {
     message: "Inventory Management System API is running!",
   });
 });
+
+app.use("/api/v1/auth", authRoutes);
 
 async function startServer() {
   try {
