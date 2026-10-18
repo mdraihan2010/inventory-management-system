@@ -67,3 +67,11 @@ export async function login(req, res) {
     });
   }
 }
+
+// Login করা user-এর নিজের তথ্য দেখায়
+export async function getMe(req, res) {
+  res.status(200).json({
+    success: true,
+    user: req.user,
+  });
+}
