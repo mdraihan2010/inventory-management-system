@@ -4,13 +4,19 @@ import {
   getPurchases,
   getPurchaseById,
 } from "../controllers/purchaseController.js";
+import { completePurchase, cancelPurchase } from "../controllers/purchaseStatusController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Purchase শুধু Manager ও Administrator দেখবে ও তৈরি করবে
-router.get("/", protect, authorize("ADMINISTRATOR", "MANAGER"), getPurchases);
-router.post("/", protect, authorize("ADMINISTRATOR", "MANAGER"), createPurchase);
-router.get("/:id", protect, authorize("ADMINISTRATOR", "MANAGER"), getPurchaseById);
+const managersOnly = authorize("ADMINISTRATOR", "MANAGER");
+
+router.get("/", protect, managersOnly, getPurchases);
+router.post("/", protect, managersOnly, createPurchase);
+router.get("/:id", protect, managersOnly, getPurchaseById);
+
+// নতুন: চালান সম্পন্ন ও বাতিল
+router.post("/:id/complete", protect, managersOnly, completePurchase);
+router.post("/:id/cancel", protect, managersOnly, cancelPurchase);
 
 export default router;
