@@ -10,6 +10,7 @@ import customerRoutes from "./routes/customerRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
+import salesRoutes from "./routes/salesRoutes.js";
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use("/api/v1/customers", customerRoutes);
 app.use("/api/v1/suppliers", supplierRoutes);
 app.use("/api/v1/inventory", inventoryRoutes);
 app.use("/api/v1/purchases", purchaseRoutes);
+app.use("/api/v1/sales", salesRoutes);
 
 async function startServer() {
   try {
