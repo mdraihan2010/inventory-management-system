@@ -104,7 +104,7 @@ export async function createSale(req, res) {
 
     const grandTotal = roundMoney(subtotal - discount);
 
-    const paidAmount = body.paidAmount === undefined ? 0 : body.paidAmount;
+    const paidAmount = 0; // পরিশোধ শুধু সম্পন্ন বিক্রির পরে, Payment API দিয়ে
     if (typeof paidAmount !== "number" || paidAmount < 0 || paidAmount > grandTotal) {
       return res.status(400).json({ success: false, message: "Paid amount must be between 0 and the grand total" });
     }
@@ -315,3 +315,4 @@ export async function cancelSale(req, res) {
     res.status(500).json({ success: false, message: "Server error while cancelling sale" });
   }
 }
+
