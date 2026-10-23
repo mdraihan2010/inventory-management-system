@@ -8,6 +8,8 @@ const saleItemSchema = new mongoose.Schema(
     quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
     lineTotal: { type: Number, required: true, min: 0 },
+    // বিক্রি সম্পন্ন হওয়ার সময়ের ক্রয়মূল্য। লাভ হিসাবের জন্য এটা লাগবে
+    costPrice: { type: Number, default: null, min: 0 },
   },
   { _id: false }
 );
@@ -15,7 +17,6 @@ const saleItemSchema = new mongoose.Schema(
 const saleSchema = new mongoose.Schema(
   {
     saleNumber: { type: String, required: true, unique: true },
-    // customer না থাকলে walk-in বিক্রি
     customer: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", default: null, index: true },
     items: {
       type: [saleItemSchema],
