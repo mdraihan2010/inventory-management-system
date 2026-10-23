@@ -1,6 +1,7 @@
 ﻿import mongoose from "mongoose";
 import Payment, { PAYMENT_METHODS } from "../models/Payment.js";
 import Sale from "../models/Sale.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 function roundMoney(value) {
   return Math.round(value * 100) / 100;
@@ -40,7 +41,6 @@ export async function addPayment(req, res) {
     let result;
 
     await session.withTransaction(async () => {
-      // শর্তসহ বাড়ানো: শুধু COMPLETED বিক্রি এবং যথেষ্ট বাকি থাকলেই হবে
       const sale = await Sale.findOneAndUpdate(
         {
           _id: id,
@@ -62,7 +62,7 @@ export async function addPayment(req, res) {
             },
           },
         ],
-        { new: true, session, updatePipeline: true }
+        { returnDocument: "after", session, updatePipeline: true }
       );
 
       if (!sale) {
@@ -91,6 +91,15 @@ export async function addPayment(req, res) {
       );
 
       result = { sale, payment };
+    });
+
+    // আর্থিক সিদ্ধান্ত: transaction সফল হওয়ার পরে রেকর্ড
+    await logAudit({
+      userId: req.user._id,
+      action: "PAYMENT",
+      entityType: "Payment",
+      entityId: result.payment._id,
+      summary: `Received ${amount} by ${body.method} for sale ${result.sale.saleNumber}`,
     });
 
     res.status(201).json({
@@ -167,4 +176,3 @@ export async function getAllPayments(req, res) {
     res.status(500).json({ success: false, message: "Server error while fetching payments" });
   }
 }
-

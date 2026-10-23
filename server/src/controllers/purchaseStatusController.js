@@ -2,21 +2,19 @@
 import Purchase from "../models/Purchase.js";
 import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
+import { logAudit } from "../utils/auditLogger.js";
 
-// নির্দিষ্ট status সহ error তৈরি করে, যাতে সঠিক উত্তর পাঠানো যায়
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
 }
 
-// চালান সম্পন্ন করার মূল কাজ। এটা একটা transaction-এর ভিতরে চলবে
 async function completeInsideTransaction(purchaseId, userId, session) {
-  // ১. শর্তসহ বদল: শুধু DRAFT চালানই COMPLETED হবে। দুবার সম্পন্ন হওয়া এখানেই আটকায়
   const purchase = await Purchase.findOneAndUpdate(
     { _id: purchaseId, status: "DRAFT" },
     { status: "COMPLETED" },
-    { new: true, session }
+    { returnDocument: "after", session }
   );
 
   if (!purchase) {
@@ -27,12 +25,11 @@ async function completeInsideTransaction(purchaseId, userId, session) {
     throw httpError(409, "Only draft purchases can be completed");
   }
 
-  // ২. প্রতিটি পণ্যের স্টক বাড়াও, এবং প্রতিটির জন্য রেকর্ড রাখো
   for (const item of purchase.items) {
     const product = await Product.findOneAndUpdate(
       { _id: item.product },
       { $inc: { currentStock: item.quantity } },
-      { new: true, session }
+      { returnDocument: "after", session }
     );
 
     if (!product) {
@@ -74,9 +71,17 @@ export async function completePurchase(req, res) {
   try {
     let completed;
 
-    // এই ব্লকের সব কাজ একসাথে হবে, নয়তো কিছুই হবে না
     await session.withTransaction(async () => {
       completed = await completeInsideTransaction(id, req.user._id, session);
+    });
+
+    // আর্থিক সিদ্ধান্ত: মাল গ্রহণ ও স্টক বাড়ানো
+    await logAudit({
+      userId: req.user._id,
+      action: "COMPLETE",
+      entityType: "Purchase",
+      entityId: completed._id,
+      summary: `Completed purchase ${completed.purchaseNumber} for ${completed.grandTotal}`,
     });
 
     res.status(200).json({
@@ -107,7 +112,7 @@ export async function cancelPurchase(req, res) {
     const purchase = await Purchase.findOneAndUpdate(
       { _id: id, status: "DRAFT" },
       { status: "CANCELLED" },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!purchase) {
@@ -120,6 +125,14 @@ export async function cancelPurchase(req, res) {
         message: "Only draft purchases can be cancelled. Completed purchases need a reversal.",
       });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "CANCEL",
+      entityType: "Purchase",
+      entityId: purchase._id,
+      summary: `Cancelled purchase ${purchase.purchaseNumber}`,
+    });
 
     res.status(200).json({ success: true, message: "Purchase cancelled", data: purchase });
   } catch (error) {
