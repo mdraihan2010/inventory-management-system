@@ -15,11 +15,19 @@ type Screen = 'checking' | 'login' | 'change-password' | 'app'
 const inputClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900'
 
+const WAKE_UP_MESSAGE = 'সার্ভার জাগানো হচ্ছে। প্রথমবার ২-৩ মিনিট পর্যন্ত লাগতে পারে, অনুগ্রহ করে অপেক্ষা করুন।'
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const [screen, setScreen] = useState<Screen>('checking')
+  const [slowCheck, setSlowCheck] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+
+    // তিন সেকেন্ডের বেশি লাগলে ব্যবহারকারীকে জানানো হয় যে সার্ভার জাগছে
+    const slowTimer = setTimeout(() => {
+      if (!cancelled) setSlowCheck(true)
+    }, 3000)
 
     async function verifySession() {
       if (!getToken()) {
@@ -40,13 +48,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true
+      clearTimeout(slowTimer)
     }
   }, [])
 
   if (screen === 'checking') {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 text-sm text-gray-500">
-        সার্ভার যাচাই করা হচ্ছে... প্রথমবার ৫০ সেকেন্ড পর্যন্ত লাগতে পারে।
+        {slowCheck ? WAKE_UP_MESSAGE : 'সার্ভার যাচাই করা হচ্ছে...'}
       </div>
     )
   }
@@ -73,6 +82,17 @@ function LoginForm({ onSuccess }: { onSuccess: (mustChangePassword: boolean) => 
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [slow, setSlow] = useState(false)
+
+  // অনুরোধ তিন সেকেন্डের বেশি চললে সার্ভার জাগার বার্তা দেখানো হয়
+  useEffect(() => {
+    if (!submitting) {
+      setSlow(false)
+      return
+    }
+    const timer = setTimeout(() => setSlow(true), 3000)
+    return () => clearTimeout(timer)
+  }, [submitting])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -136,6 +156,8 @@ function LoginForm({ onSuccess }: { onSuccess: (mustChangePassword: boolean) => 
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? 'প্রবেশ করা হচ্ছে...' : 'প্রবেশ করুন'}
         </Button>
+
+        {submitting && slow && <p className="text-sm text-gray-500">{WAKE_UP_MESSAGE}</p>}
       </form>
     </div>
   )
