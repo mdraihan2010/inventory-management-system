@@ -12,6 +12,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use("/api/v1/inventory", inventoryRoutes);
 app.use("/api/v1/purchases", purchaseRoutes);
 app.use("/api/v1/sales", salesRoutes);
 app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/reports", reportRoutes);
 
 async function startServer() {
   try {
