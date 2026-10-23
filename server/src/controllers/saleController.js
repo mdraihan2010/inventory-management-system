@@ -23,7 +23,6 @@ function httpError(status, message) {
   return error;
 }
 
-// কত টাকা দেওয়া হয়েছে, তার ওপর নির্ভর করে পরিশোধের অবস্থা
 function paymentStatusFor(grandTotal, paidAmount) {
   if (paidAmount <= 0) return "UNPAID";
   if (paidAmount >= grandTotal) return "PAID";
@@ -35,7 +34,6 @@ export async function createSale(req, res) {
   try {
     const body = req.body || {};
 
-    // গ্রাহক ঐচ্ছিক। না দিলে walk-in বিক্রি হবে
     let customerId = null;
     if (body.customer !== undefined && body.customer !== null && body.customer !== "") {
       if (!mongoose.isValidObjectId(body.customer)) {
@@ -84,7 +82,6 @@ export async function createSale(req, res) {
       if (!product.isActive) {
         return res.status(400).json({ success: false, message: `Product is inactive: ${product.name}` });
       }
-      // দাম সবসময় পণ্যের বর্তমান selling price থেকে নেওয়া হচ্ছে, অনুরোধ থেকে নয়
       items.push({
         product: product._id,
         productName: product.name,
@@ -104,10 +101,8 @@ export async function createSale(req, res) {
 
     const grandTotal = roundMoney(subtotal - discount);
 
-    const paidAmount = 0; // পরিশোধ শুধু সম্পন্ন বিক্রির পরে, Payment API দিয়ে
-    if (typeof paidAmount !== "number" || paidAmount < 0 || paidAmount > grandTotal) {
-      return res.status(400).json({ success: false, message: "Paid amount must be between 0 and the grand total" });
-    }
+    // পরিশোধ শুধু সম্পন্ন বিক্রির পরে, Payment API দিয়ে
+    const paidAmount = 0;
 
     const sale = await Sale.create({
       saleNumber: makeSaleNumber(),
@@ -117,7 +112,7 @@ export async function createSale(req, res) {
       discount,
       grandTotal,
       paidAmount,
-      outstandingAmount: roundMoney(grandTotal - paidAmount),
+      outstandingAmount: grandTotal,
       paymentStatus: paymentStatusFor(grandTotal, paidAmount),
       notes: body.notes,
       createdBy: req.user._id,
@@ -171,7 +166,7 @@ export async function getSales(req, res) {
   }
 }
 
-// GET /api/v1/sales/:id: একটা বিক্রির বিস্তারিত
+// GET /api/v1/sales/:id
 export async function getSaleById(req, res) {
   try {
     const { id } = req.params;
@@ -195,13 +190,12 @@ export async function getSaleById(req, res) {
   }
 }
 
-// একটা transaction-এর ভিতরে: status বদল, স্টক কমানো, রেকর্ড। একটা ব্যর্থ হলে সব বাতিল
+// একটা transaction-এর ভিতরে সব কাজ: status, স্টক, রেকর্ড, এবং ক্রয়মূল্য
 async function completeInsideTransaction(saleId, userId, session) {
-  // শুধু DRAFT বিক্রি সম্পন্ন হবে। একবার সম্পন্ন হলে দ্বিতীয়বার এখানেই আটকাবে
   const sale = await Sale.findOneAndUpdate(
     { _id: saleId, status: "DRAFT" },
     { status: "COMPLETED" },
-    { new: true, session }
+    { returnDocument: "after", session }
   );
 
   if (!sale) {
@@ -212,12 +206,14 @@ async function completeInsideTransaction(saleId, userId, session) {
     throw httpError(409, "Only draft sales can be completed");
   }
 
+  // প্রতিটি লাইনের সাথে বিক্রির সময়ের ক্রয়মূল্য যোগ হবে
+  const updatedItems = [];
+
   for (const item of sale.items) {
-    // শর্তসহ কমানো: স্টক যথেষ্ট থাকলেই কমবে। না থাকলে এই পণ্যেই থেমে যাবে
     const product = await Product.findOneAndUpdate(
       { _id: item.product, currentStock: { $gte: item.quantity } },
       { $inc: { currentStock: -item.quantity } },
-      { new: true, session }
+      { returnDocument: "after", session }
     );
 
     if (!product) {
@@ -245,9 +241,26 @@ async function completeInsideTransaction(saleId, userId, session) {
       ],
       { session }
     );
+
+    updatedItems.push({
+      product: item.product,
+      productName: item.productName,
+      sku: item.sku,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineTotal: item.lineTotal,
+      costPrice: product.purchasePrice,
+    });
   }
 
-  return sale;
+  // সব লাইন একবারে সংরক্ষণ, যাতে costPrice বাদ না পড়ে
+  const saved = await Sale.findOneAndUpdate(
+    { _id: saleId },
+    { $set: { items: updatedItems } },
+    { returnDocument: "after", session }
+  );
+
+  return saved;
 }
 
 // POST /api/v1/sales/:id/complete
@@ -295,7 +308,7 @@ export async function cancelSale(req, res) {
     const sale = await Sale.findOneAndUpdate(
       { _id: id, status: "DRAFT" },
       { status: "CANCELLED" },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!sale) {
@@ -315,4 +328,3 @@ export async function cancelSale(req, res) {
     res.status(500).json({ success: false, message: "Server error while cancelling sale" });
   }
 }
-
