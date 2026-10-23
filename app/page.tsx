@@ -31,6 +31,7 @@ import { apiRequest, clearToken, getToken } from '@/lib/api'
 import { ProductsPage } from '@/components/products-page'
 import { SalesPage } from '@/components/sales-page'
 import { CustomersPage } from '@/components/customers-page'
+import { SuppliersPage } from '@/components/suppliers-page'
 
 type PageKey = 'Dashboard' | 'Products' | 'Categories' | 'Brands' | 'Inventory' | 'Purchases' | 'Sales' | 'Customers' | 'Suppliers' | 'Returns' | 'Payments & Dues' | 'Reports' | 'User Management'
 
@@ -201,7 +202,7 @@ function App() {
       <main className="main-content">
         <header className="topbar"><button className="menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu /></button><div className="breadcrumb"><span>Workspace</span><b>/</b><strong>{activePage}</strong></div><div className="topbar-actions"><label className="global-search"><Search /><input placeholder="Search anything..." aria-label="Search" /></label><button className="icon-button" aria-label="Notifications"><Bell /><i /></button><div className="top-avatar">{initials}</div></div></header>
         <div className="page-content">
-          {activePage === 'Dashboard' ? <Dashboard onNavigate={selectPage} userName={userName} /> : activePage === 'Products' ? <ProductsPage canManage={canManage} /> : activePage === 'Sales' ? <SalesPage canManage={canManage} /> : activePage === 'Customers' ? <CustomersPage canManage={canManage} /> : <SectionPage page={activePage} query={query} setQuery={setQuery} filteredProducts={filteredProducts} onNavigate={selectPage} />}
+          {activePage === 'Dashboard' ? <Dashboard onNavigate={selectPage} userName={userName} /> : activePage === 'Products' ? <ProductsPage canManage={canManage} /> : activePage === 'Sales' ? <SalesPage canManage={canManage} /> : activePage === 'Customers' ? <CustomersPage canManage={canManage} /> : activePage === 'Suppliers' ? <SuppliersPage canManage={canManage} /> : <SectionPage page={activePage} query={query} setQuery={setQuery} filteredProducts={filteredProducts} onNavigate={selectPage} />}
         </div>
       </main>
     </div>
@@ -390,6 +391,6 @@ function SectionPage({ page, query, setQuery, filteredProducts, onNavigate }: { 
 
 function ProductTable({ rows }: { rows: typeof products }) { return <div className="table-scroll"><table><thead><tr><th>Product</th><th>Category</th><th>Brand</th><th>Stock</th><th>Price</th><th>Status</th><th /></tr></thead><tbody>{rows.map((product) => <tr key={product.sku}><td><div className="product-cell"><div className="product-thumb"><Package /></div><div><strong>{product.name}</strong><span>{product.sku}</span></div></div></td><td>{product.category}</td><td>{product.brand}</td><td><strong className={product.stock < 20 ? 'stock-low' : ''}>{product.stock}</strong></td><td>{product.price}</td><td><span className={`status ${product.status.toLowerCase().replaceAll(' ', '-')}`}>{product.status}</span></td><td><button className="row-menu" aria-label={`Actions for ${product.name}`}>•••</button></td></tr>)}</tbody></table></div> }
 
-function GenericTable({ page }: { page: PageKey }) { const names = page === 'Suppliers' ? ['TechSource Ltd.', 'OfficeMart BD', 'Global Goods'] : ['PO-2024-0186', 'SO-2024-0912', 'RET-2024-0042', 'INV-2024-0221']; return <div className="table-scroll"><table><thead><tr><th>Reference</th><th>Name</th><th>Date</th><th>Amount</th><th>Status</th><th /></tr></thead><tbody>{names.map((name, index) => <tr key={name}><td><strong className="ref-code">{page.slice(0, 3).toUpperCase()}-{String(186 - index).padStart(4, '0')}</strong></td><td>{name}</td><td>Oct {14 - index}, 2024</td><td>${(3200 - index * 418).toLocaleString()}</td><td><span className={`status ${index === 2 ? 'pending' : 'in-stock'}`}>{index === 2 ? 'Pending' : 'Completed'}</span></td><td><button className="row-menu" aria-label={`Actions for ${name}`}>•••</button></td></tr>)}</tbody></table></div> }
+function GenericTable({ page }: { page: PageKey }) { const names = ['PO-2024-0186', 'SO-2024-0912', 'RET-2024-0042', 'INV-2024-0221']; return <div className="table-scroll"><table><thead><tr><th>Reference</th><th>Name</th><th>Date</th><th>Amount</th><th>Status</th><th /></tr></thead><tbody>{names.map((name, index) => <tr key={name}><td><strong className="ref-code">{page.slice(0, 3).toUpperCase()}-{String(186 - index).padStart(4, '0')}</strong></td><td>{name}</td><td>Oct {14 - index}, 2024</td><td>${(3200 - index * 418).toLocaleString()}</td><td><span className={`status ${index === 2 ? 'pending' : 'in-stock'}`}>{index === 2 ? 'Pending' : 'Completed'}</span></td><td><button className="row-menu" aria-label={`Actions for ${name}`}>•••</button></td></tr>)}</tbody></table></div> }
 
 export default App
