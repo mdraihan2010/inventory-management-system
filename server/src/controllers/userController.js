@@ -1,6 +1,7 @@
 ﻿import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import User, { ROLES } from "../models/User.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 // GET /api/v1/users: সব user, passwordHash ছাড়া
 export async function getUsers(req, res) {
@@ -40,6 +41,14 @@ export async function createUser(req, res) {
       role: body.role,
       isActive: true,
       mustChangePassword: true,
+    });
+
+    await logAudit({
+      userId: req.user._id,
+      action: "CREATE",
+      entityType: "User",
+      entityId: user._id,
+      summary: `Created user ${user.email} with role ${user.role}`,
     });
 
     res.status(201).json({ success: true, message: "User created", data: user });
@@ -84,7 +93,6 @@ export async function updateUser(req, res) {
       return res.status(400).json({ success: false, message: "Nothing to update" });
     }
 
-    // নিজেকে বন্ধ বা role কমাতে দেওয়া হবে না, যাতে কেউ সবাইকে বাদ দিয়ে ফেলতে না পারে
     if (id === req.user._id.toString()) {
       if (allowed.isActive === false) {
         return res.status(400).json({ success: false, message: "You cannot deactivate your own account" });
@@ -102,6 +110,14 @@ export async function updateUser(req, res) {
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "UPDATE",
+      entityType: "User",
+      entityId: user._id,
+      summary: `Updated ${Object.keys(allowed).map((key) => `${key}=${allowed[key]}`).join(", ")}`,
+    });
 
     res.status(200).json({ success: true, message: "User updated", data: user });
   } catch (error) {
@@ -138,6 +154,15 @@ export async function changePassword(req, res) {
     user.passwordHash = await bcrypt.hash(body.newPassword, 12);
     user.mustChangePassword = false;
     await user.save();
+
+    // পাসওয়ার্ডের মান নয়, শুধু ঘটনাটি রেকর্ড হয়
+    await logAudit({
+      userId: req.user._id,
+      action: "CHANGE_PASSWORD",
+      entityType: "User",
+      entityId: user._id,
+      summary: "User changed own password",
+    });
 
     res.status(200).json({ success: true, message: "Password changed" });
   } catch (error) {

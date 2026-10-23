@@ -4,6 +4,7 @@ import Sale from "../models/Sale.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 const STATUSES = ["DRAFT", "COMPLETED", "CANCELLED"];
 
@@ -206,7 +207,6 @@ async function completeInsideTransaction(saleId, userId, session) {
     throw httpError(409, "Only draft sales can be completed");
   }
 
-  // প্রতিটি লাইনের সাথে বিক্রির সময়ের ক্রয়মূল্য যোগ হবে
   const updatedItems = [];
 
   for (const item of sale.items) {
@@ -253,7 +253,6 @@ async function completeInsideTransaction(saleId, userId, session) {
     });
   }
 
-  // সব লাইন একবারে সংরক্ষণ, যাতে costPrice বাদ না পড়ে
   const saved = await Sale.findOneAndUpdate(
     { _id: saleId },
     { $set: { items: updatedItems } },
@@ -278,6 +277,15 @@ export async function completeSale(req, res) {
 
     await session.withTransaction(async () => {
       completed = await completeInsideTransaction(id, req.user._id, session);
+    });
+
+    // আর্থিক সিদ্ধান্ত: transaction সফল হওয়ার পরে রেকর্ড
+    await logAudit({
+      userId: req.user._id,
+      action: "COMPLETE",
+      entityType: "Sale",
+      entityId: completed._id,
+      summary: `Completed sale ${completed.saleNumber} for ${completed.grandTotal}`,
     });
 
     res.status(200).json({
@@ -321,6 +329,14 @@ export async function cancelSale(req, res) {
         message: "Only draft sales can be cancelled. Completed sales need a return.",
       });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "CANCEL",
+      entityType: "Sale",
+      entityId: sale._id,
+      summary: `Cancelled sale ${sale.saleNumber}`,
+    });
 
     res.status(200).json({ success: true, message: "Sale cancelled", data: sale });
   } catch (error) {

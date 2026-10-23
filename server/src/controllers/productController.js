@@ -2,13 +2,12 @@
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
 import Brand from "../models/Brand.js";
+import { logAudit } from "../utils/auditLogger.js";
 
-// Search-এর লেখায় বিশেষ চিহ্ন (যেমন . * +) থাকলে সেগুলো সাধারণ লেখা হিসেবে খোঁজা হয়
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Category বা Brand আছে এবং active কিনা যাচাই করে
 async function checkReference(Model, id, label) {
   if (!id) {
     return `${label} is required`;
@@ -26,13 +25,11 @@ async function checkReference(Model, id, label) {
   return null;
 }
 
-// কোন field-এ duplicate হয়েছে সেই অনুযায়ী বার্তা
 function duplicateMessage(error) {
   const field = Object.keys(error.keyPattern || {})[0];
   return field === "barcode" ? "Barcode already exists" : "SKU already exists";
 }
 
-// সব product, pagination, search ও filter সহ
 export async function getProducts(req, res) {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -80,7 +77,6 @@ export async function getProducts(req, res) {
   }
 }
 
-// একটা product-এর বিস্তারিত
 export async function getProductById(req, res) {
   try {
     const { id } = req.params;
@@ -104,7 +100,6 @@ export async function getProductById(req, res) {
   }
 }
 
-// নতুন product তৈরি
 export async function createProduct(req, res) {
   try {
     const body = req.body || {};
@@ -127,7 +122,6 @@ export async function createProduct(req, res) {
       return res.status(400).json({ success: false, message: brandError });
     }
 
-    // currentStock ইচ্ছাকৃতভাবে নেওয়া হয়নি। স্টক শুধু Inventory-র মাধ্যমে বদলাবে
     const product = await Product.create({
       name: body.name,
       sku: body.sku,
@@ -139,6 +133,14 @@ export async function createProduct(req, res) {
       sellingPrice: body.sellingPrice,
       minStockLevel: body.minStockLevel,
       unit: body.unit,
+    });
+
+    await logAudit({
+      userId: req.user._id,
+      action: "CREATE",
+      entityType: "Product",
+      entityId: product._id,
+      summary: `Created product ${product.name} (SKU ${product.sku})`,
     });
 
     res.status(201).json({ success: true, message: "Product created", data: product });
@@ -154,7 +156,6 @@ export async function createProduct(req, res) {
   }
 }
 
-// product আপডেট করে। currentStock এই তালিকায় নেই, তাই এখান থেকে স্টক বদলানো যাবে না
 export async function updateProduct(req, res) {
   try {
     const { id } = req.params;
@@ -205,7 +206,7 @@ export async function updateProduct(req, res) {
     }
 
     const product = await Product.findByIdAndUpdate(id, updates, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     })
       .populate("category", "name")
@@ -214,6 +215,14 @@ export async function updateProduct(req, res) {
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "UPDATE",
+      entityType: "Product",
+      entityId: product._id,
+      summary: `Updated fields: ${Object.keys(updates).join(", ")}`,
+    });
 
     res.status(200).json({ success: true, message: "Product updated", data: product });
   } catch (error) {
