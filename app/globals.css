@@ -34,3 +34,61 @@ button { cursor: pointer; }
 .section-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 18px; }.small-stat { padding: 16px 18px; }.small-stat strong { display: block; font-size: 21px; margin: 7px 0 5px; }.table-panel { padding: 0 20px 10px; }.table-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 17px 0; }.table-title { display: flex; align-items: center; gap: 8px; }.table-title span { font-size: 9px; color: #9da7b6; background: #f2f4f8; border-radius: 10px; padding: 3px 7px; }.toolbar-actions { display: flex; gap: 9px; }.table-search { display: flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 190px; color: #aab3c0; }.filter-button { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 6px; background: white; color: #687589; padding: 7px 10px; font-size: 10px; }.filter-button svg { width: 13px; }.ref-code { color: var(--blue) !important; font-size: 10px; }.back-dashboard { border: 0; background: transparent; color: var(--blue); font-size: 11px; padding: 18px 0; }
 @media (max-width: 900px) { .sidebar { width: 220px; flex-basis: 220px; }.topbar, .page-content { padding-left: 24px; padding-right: 24px; }.summary-grid { grid-template-columns: repeat(2, 1fr); }.dashboard-grid { grid-template-columns: 1fr; } }
 @media (max-width: 650px) { .sidebar { position: fixed; z-index: 5; left: -250px; top: 0; transition: left .2s ease; box-shadow: 12px 0 30px #18253b1c; }.sidebar-open { left: 0; }.mobile-scrim { position: fixed; inset: 0; z-index: 4; background: #17203355; border: 0; }.mobile-close { display: block; margin-left: auto; color: #8d98a8; background: none; border: 0; }.mobile-close svg { width: 18px; }.menu-button { display: grid; place-items: center; border: 0; background: transparent; color: #6f7b8e; padding: 0; }.menu-button svg { width: 20px; }.topbar { height: 60px; padding: 0 16px; gap: 14px; }.breadcrumb { overflow: hidden; white-space: nowrap; }.topbar-actions { gap: 11px; }.global-search { width: 34px; padding: 8px; }.global-search input { display: none; }.page-content { padding: 22px 16px 30px; }.page-heading { align-items: flex-start; gap: 16px; flex-direction: column; }.page-heading h1 { font-size: 22px; }.summary-grid, .section-stat-row { grid-template-columns: 1fr 1fr; gap: 10px; }.summary-card { padding: 12px; }.metric-icon { width: 32px; height: 32px; }.metric-info strong { font-size: 16px; }.metric-info em { display: none; }.panel { padding: 15px; }.donut-row { justify-content: space-between; }.donut { width: 112px; height: 112px; }.donut:before { width: 78px; height: 78px; }.stock-legend { gap: 11px; }.stock-alert { gap: 8px; }.table-toolbar { align-items: flex-start; gap: 12px; flex-direction: column; }.toolbar-actions { width: 100%; }.table-search { flex: 1; }.primary-button { align-self: flex-start; } }
+
+/* ===== Dark mode ===== */
+.dark { color-scheme: dark; --ink: #e8edf6; --muted: #9aa6b8; --line: #2b3444; --blue: #5b8ff5; --surface: #161c27; --canvas: #0d1219; }
+.dark body { background: var(--canvas); color: var(--ink); }
+.dark .sidebar, .dark .topbar { background: var(--surface); border-color: var(--line); }
+.dark .nav-item { color: #9aa6b8; }
+.dark .nav-item:hover { color: var(--ink); background: #1d2533; }
+.dark .nav-item.active { color: #8fb2ff; background: #1f2d47; }
+.dark .nav-item b { background: #3a2a1d; color: #f0a46a; }
+.dark .sidebar-help { background: #1a2230; }
+.dark .summary-card, .dark .panel, .dark .small-stat { background: var(--surface); border-color: var(--line); }
+.dark .global-search, .dark .table-search, .dark .filter-button, .dark .panel-heading select { background: #1d2533; border-color: var(--line); color: var(--muted); }
+.dark .global-search input, .dark .table-search input { color: var(--ink); }
+.dark .stock-alert { border-color: var(--line); }
+.dark .stock-alert button { background: #3a2a1d; color: #f0a46a; }
+.dark .icon-button { color: var(--muted); }
+.dark .donut:before { background: var(--surface); }
+.dark table th, .dark table td { border-color: var(--line); }
+.dark .status.in-stock { background: #14291f; color: #6ee7b7; }
+.dark .status.low-stock { background: #2e2412; color: #fcd34d; }
+.dark .status.out-of-stock { background: #2d1718; color: #fca5a5; }
+.dark .status.pending { background: #2a2517; color: #e6c36b; }
+.dark .bg-white { background-color: var(--surface); }
+.dark .bg-gray-50 { background-color: #1a2230; }
+.dark .bg-gray-100 { background-color: #222b3a; }
+.dark .bg-gradient-to-br { background-image: none; background-color: var(--canvas); }
+.dark .bg-amber-50 { background-color: #2e2412; }
+.dark .bg-red-50 { background-color: #2d1718; }
+.dark .bg-blue-50 { background-color: #16233a; }
+.dark .bg-emerald-50 { background-color: #122a22; }
+.dark .bg-sky-50 { background-color: #132433; }
+.dark .bg-indigo-50 { background-color: #1c1f3a; }
+.dark .bg-violet-50 { background-color: #241d3a; }
+.dark .hover\:bg-gray-50:hover { background-color: #1d2533; }
+.dark .hover\:bg-gray-100:hover { background-color: #222b3a; }
+.dark .text-gray-900 { color: #e8edf6; }
+.dark .text-gray-700 { color: #c3ccdb; }
+.dark .text-gray-600 { color: #aab4c5; }
+.dark .text-gray-500 { color: #8f9bb0; }
+.dark .text-gray-400 { color: #6f7b8f; }
+.dark .text-red-600 { color: #f87171; }
+.dark .text-red-700 { color: #fca5a5; }
+.dark .text-green-700 { color: #6ee7b7; }
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .text-amber-700, .dark .text-amber-800 { color: #fcd34d; }
+.dark .text-blue-600, .dark .text-blue-800 { color: #8fb2ff; }
+.dark .text-indigo-600, .dark .text-indigo-700 { color: #a5b4fc; }
+.dark .text-sky-700 { color: #7dd3fc; }
+.dark .text-violet-700 { color: #c4b5fd; }
+.dark .border-gray-300 { border-color: #3a4558; }
+.dark .border-gray-200 { border-color: var(--line); }
+.dark .border-red-200 { border-color: #5c2a2a; }
+.dark .border-emerald-200 { border-color: #1f4d3c; }
+.dark .border-amber-200 { border-color: #5c4a1f; }
+.dark .border-blue-200 { border-color: #2a4a80; }
+.dark .border-sky-200 { border-color: #1f4a66; }
+.dark .border-indigo-200 { border-color: #3a3f80; }
+.dark .border-violet-200 { border-color: #4a3a80; }

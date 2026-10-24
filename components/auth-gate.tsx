@@ -1,9 +1,10 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Boxes, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react'
 import { ApiError, apiRequest, getToken, setToken } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 type LoginResponse = {
   success: boolean
@@ -83,7 +84,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-100 p-6">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-100 p-6">
+      <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="flex size-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/30">

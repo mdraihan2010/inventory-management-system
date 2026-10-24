@@ -36,6 +36,7 @@ import { ReportsPage } from '@/components/reports-page'
 import { PaymentsPage } from '@/components/payments-page'
 import { ReturnsPage } from '@/components/returns-page'
 import { AccountSettingsModal } from '@/components/account-settings'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 type PageKey = 'Dashboard' | 'Products' | 'Categories' | 'Brands' | 'Inventory' | 'Purchases' | 'Sales' | 'Customers' | 'Suppliers' | 'Returns' | 'Payments & Dues' | 'Reports' | 'User Management'
 
@@ -251,7 +252,7 @@ function App() {
         <header className="topbar">
           <button className="menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu /></button>
           <div className="breadcrumb"><span>Workspace</span><b>/</b><strong>{activePage}</strong></div>
-          <div className="topbar-actions"><div className="top-avatar">{initials}</div></div>
+          <div className="topbar-actions"><ThemeToggle /><div className="top-avatar">{initials}</div></div>
         </header>
         <div className="page-content">{renderPage()}</div>
         {accountOpen && me && (

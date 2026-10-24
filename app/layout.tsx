@@ -34,13 +34,19 @@ export const viewport: Viewport = {
   ],
 }
 
+// পাতা দেখানোর আগেই theme ঠিক করে, যাতে সাদা ঝলক না আসে
+const themeScript = `(function(){try{var t=localStorage.getItem('stockpilot-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="antialiased">
         <AuthGate>{children}</AuthGate>
         {process.env.NODE_ENV === 'production' && <Analytics />}
