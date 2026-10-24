@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import { connectDB } from "./config/db.js";
@@ -14,6 +14,7 @@ import salesRoutes from "./routes/salesRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import returnRoutes from "./routes/returnRoutes.js";
+import accountRoutes from "./routes/accountRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import auditRoutes from "./routes/auditRoutes.js";
 
@@ -49,6 +50,7 @@ app.use("/api/v1/sales", salesRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/returns", returnRoutes);
+app.use("/api/v1/accounts", accountRoutes);
 app.use("/api/v1/audit-logs", auditRoutes);
 
 async function startServer() {

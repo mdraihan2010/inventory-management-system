@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useState } from 'react'
 import {
@@ -35,6 +35,7 @@ import { UsersPage } from '@/components/users-page'
 import { ReportsPage } from '@/components/reports-page'
 import { PaymentsPage } from '@/components/payments-page'
 import { ReturnsPage } from '@/components/returns-page'
+import { AccountSettingsModal } from '@/components/account-settings'
 
 type PageKey = 'Dashboard' | 'Products' | 'Categories' | 'Brands' | 'Inventory' | 'Purchases' | 'Sales' | 'Customers' | 'Suppliers' | 'Returns' | 'Payments & Dues' | 'Reports' | 'User Management'
 
@@ -62,7 +63,7 @@ const ROLE_LABEL: Record<string, string> = {
   STAFF: 'Staff',
 }
 
-type CurrentUser = { name: string; role: string }
+type CurrentUser = { name: string; role: string; email: string }
 
 type SalesReport = { count: number; totalSales: number; totalPaid: number; totalOutstanding: number }
 type PurchasesReport = { count: number; totalPurchases: number }
@@ -156,6 +157,7 @@ function App() {
   const [activePage, setActivePage] = useState<PageKey>('Dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [me, setMe] = useState<CurrentUser | null>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
 
   useEffect(() => {
     apiRequest<{ success: boolean; user: CurrentUser }>('/auth/me')
@@ -241,6 +243,7 @@ function App() {
         <div className="sidebar-footer">
           <div className="avatar">{initials}</div>
           <div><strong>{userName || 'লোড হচ্ছে...'}</strong><span>{roleLabel}</span></div>
+          <button className="icon-button" onClick={() => setAccountOpen(true)} aria-label="আমার অ্যাকাউন্ট"><Settings /></button>
           <button className="icon-button" onClick={handleLogout} aria-label="Logout"><LogOut /></button>
         </div>
       </aside>
@@ -251,6 +254,13 @@ function App() {
           <div className="topbar-actions"><div className="top-avatar">{initials}</div></div>
         </header>
         <div className="page-content">{renderPage()}</div>
+        {accountOpen && me && (
+          <AccountSettingsModal
+            currentEmail={me.email}
+            onClose={() => setAccountOpen(false)}
+            onEmailChanged={(email) => setMe((previous) => (previous ? { ...previous, email } : previous))}
+          />
+        )}
       </main>
     </div>
   )

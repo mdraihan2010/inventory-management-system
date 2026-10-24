@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, typ
 import { Plus, X } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { EditProfileModal, ResetPasswordModal } from '@/components/user-admin-modals'
 
 type Role = 'ADMINISTRATOR' | 'MANAGER' | 'STAFF'
 
@@ -67,6 +68,8 @@ function UsersManager() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<AppUser | null>(null)
+  const [resetting, setResetting] = useState<AppUser | null>(null)
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -241,13 +244,16 @@ function UsersManager() {
                       {isSelf ? (
                         <span className="text-xs text-gray-400">—</span>
                       ) : (
-                        <button
-                          className={user.isActive ? rowAction.danger : rowAction.success}
+<div className="flex flex-wrap gap-1">
+<button className={rowAction.edit} onClick={() => setEditing(user)}>সম্পাদনা</button>
+<button className={rowAction.history} onClick={() => setResetting(user)}>পাসওয়ার্ড রিসেট</button>
+<button className={user.isActive ? rowAction.danger : rowAction.success}
                           disabled={busyId === user._id}
                           onClick={() => toggleActive(user)}
                         >
                           {user.isActive ? 'বন্ধ করুন' : 'চালু করুন'}
                         </button>
+</div>
                       )}
                     </td>
                   </tr>
@@ -257,6 +263,28 @@ function UsersManager() {
           </table>
         </div>
       </section>
+
+      {editing && (
+        <EditProfileModal
+          user={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(message) => {
+            setEditing(null)
+            setNotice(message)
+            loadUsers()
+          }}
+        />
+      )}
+      {resetting && (
+        <ResetPasswordModal
+          user={resetting}
+          onClose={() => setResetting(null)}
+          onSaved={(message) => {
+            setResetting(null)
+            setNotice(message)
+          }}
+        />
+      )}
 
       {creating && (
         <NewUserModal
