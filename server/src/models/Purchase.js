@@ -26,6 +26,8 @@ const purchaseSchema = new mongoose.Schema(
     discount: { type: Number, default: 0, min: 0 },
     grandTotal: { type: Number, required: true, min: 0 },
     paidAmount: { type: Number, default: 0, min: 0 },
+    // সরবরাহকারীকে ফেরত দেওয়া পণ্যের মোট মূল্য। grandTotal বদলায় না
+    returnedAmount: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: ["DRAFT", "COMPLETED", "CANCELLED"], default: "DRAFT" },
     notes: { type: String, trim: true, maxlength: 500, default: "" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
