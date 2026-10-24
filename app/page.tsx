@@ -269,11 +269,13 @@ function App() {
 function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => void; userName: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
     const result = await loadDashboard()
     setData(result)
+    setUpdatedAt(new Date())
     setLoading(false)
 
     // কোনো request-এ token অবৈধ পাওয়া গেলে apiRequest তা মুছে দেয়। তখন login পর্দায় ফেরত যাওয়া দরকার
@@ -342,7 +344,8 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
           <p className="subheading">আপনার ইনভেন্টরি ও বিক্রির সর্বশেষ অবস্থা।</p>
         </div>
         <div className="toolbar-actions">
-          <button className="icon-button" onClick={refresh} aria-label="Refresh dashboard"><RefreshCw /></button>
+          <span className="text-xs text-gray-500">{updatedAt ? `সর্বশেষ হালনাগাদ: ${updatedAt.toLocaleTimeString('en-GB')}` : 'এখনো হালনাগাদ হয়নি'}</span>
+          <button type="button" onClick={refresh} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />{loading ? 'হালনাগাদ হচ্ছে...' : 'রিফ্রেশ'}</button>
           <button className="primary-button" onClick={() => onNavigate('Products')}><Plus /> নতুন পণ্য</button>
         </div>
       </div>
