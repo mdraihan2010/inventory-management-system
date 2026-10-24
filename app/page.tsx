@@ -1,16 +1,13 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Archive,
   ArrowDownToLine,
   ArrowUpFromLine,
   BarChart3,
-  Bell,
   Boxes,
-  ChevronDown,
   CircleDollarSign,
-  CreditCard,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -18,7 +15,6 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
-  Search,
   Settings,
   ShoppingCart,
   Tags,
@@ -57,14 +53,6 @@ const navigation: { label: PageKey; icon: IconType; group: string }[] = [
   { label: 'Payments & Dues', icon: WalletCards, group: 'Finance' },
   { label: 'Reports', icon: BarChart3, group: 'Finance' },
   { label: 'User Management', icon: Settings, group: 'System' },
-]
-
-const products = [
-  { sku: 'PRD-1001', name: 'Wireless Headphones', category: 'Electronics', brand: 'SoundMax', stock: 128, price: '$89.00', status: 'In stock' },
-  { sku: 'PRD-1002', name: 'Ergonomic Office Chair', category: 'Furniture', brand: 'WorkWell', stock: 42, price: '$249.00', status: 'In stock' },
-  { sku: 'PRD-1003', name: 'Mechanical Keyboard', category: 'Electronics', brand: 'Keychron', stock: 9, price: '$129.00', status: 'Low stock' },
-  { sku: 'PRD-1004', name: 'Canvas Backpack', category: 'Accessories', brand: 'UrbanCarry', stock: 0, price: '$68.00', status: 'Out of stock' },
-  { sku: 'PRD-1005', name: 'USB-C Docking Station', category: 'Electronics', brand: 'ConnectPro', stock: 76, price: '$159.00', status: 'In stock' },
 ]
 
 const ROLE_LABEL: Record<string, string> = {
@@ -166,7 +154,6 @@ async function loadDashboard(): Promise<DashboardData> {
 function App() {
   const [activePage, setActivePage] = useState<PageKey>('Dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [query, setQuery] = useState('')
   const [me, setMe] = useState<CurrentUser | null>(null)
 
   useEffect(() => {
@@ -174,8 +161,6 @@ function App() {
       .then((response) => setMe(response.user))
       .catch(() => setMe(null))
   }, [])
-
-  const filteredProducts = useMemo(() => products.filter((product) => `${product.name} ${product.sku} ${product.category}`.toLowerCase().includes(query.toLowerCase())), [query])
 
   const selectPage = (page: PageKey) => {
     setActivePage(page)
@@ -195,24 +180,97 @@ function App() {
     ? userName.split(' ').map((part) => part.charAt(0)).join('').slice(0, 2).toUpperCase()
     : 'U'
 
+  const renderPage = () => {
+    switch (activePage) {
+      case 'Dashboard':
+        return <Dashboard onNavigate={selectPage} userName={userName} />
+      case 'Products':
+        return <ProductsPage canManage={canManage} />
+      case 'Categories':
+        return <CategoriesPage canManage={canManage} />
+      case 'Brands':
+        return <BrandsPage canManage={canManage} />
+      case 'Inventory':
+        return <InventoryPage canManage={canManage} />
+      case 'Purchases':
+        return <PurchasesPage canManage={canManage} />
+      case 'Sales':
+        return <SalesPage canManage={canManage} />
+      case 'Customers':
+        return <CustomersPage canManage={canManage} />
+      case 'Suppliers':
+        return <SuppliersPage canManage={canManage} />
+      case 'Payments & Dues':
+        return <PaymentsPage canManage={canManage} />
+      case 'Reports':
+        return <ReportsPage canManage={canManage} />
+      case 'User Management':
+        return <UsersPage isAdmin={isAdmin} />
+      case 'Returns':
+        return <ComingSoon title="Returns" />
+      default:
+        return null
+    }
+  }
+
   return (
     <div className="app-shell">
       {sidebarOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
       <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
-        <div className="brand-lockup"><div className="brand-mark"><Boxes /></div><div><strong>StockPilot</strong><span>Inventory Suite</span></div><button className="mobile-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X /></button></div>
+        <div className="brand-lockup">
+          <div className="brand-mark"><Boxes /></div>
+          <div><strong>StockPilot</strong><span>Inventory Suite</span></div>
+          <button className="mobile-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X /></button>
+        </div>
         <nav className="sidebar-nav" aria-label="Primary navigation">
-          {['Overview', 'Catalog', 'Operations', 'People', 'Finance', 'System'].map((group) => <div className="nav-group" key={group}><p>{group}</p>{navigation.filter((item) => item.group === group).map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${activePage === label ? 'active' : ''}`} onClick={() => selectPage(label)}><Icon /><span>{label}</span></button>)}</div>)}
+          {['Overview', 'Catalog', 'Operations', 'People', 'Finance', 'System'].map((group) => (
+            <div className="nav-group" key={group}>
+              <p>{group}</p>
+              {navigation
+                .filter((item) => item.group === group)
+                .map(({ label, icon: Icon }) => (
+                  <button key={label} className={`nav-item ${activePage === label ? 'active' : ''}`} onClick={() => selectPage(label)}>
+                    <Icon />
+                    <span>{label}</span>
+                  </button>
+                ))}
+            </div>
+          ))}
         </nav>
-        <div className="sidebar-help"><div className="help-icon"><CreditCard /></div><strong>Need help?</strong><p>Check our documentation for quick tips.</p><button>View guide <span>→</span></button></div>
-        <div className="sidebar-footer"><div className="avatar">{initials}</div><div><strong>{userName || 'লোড হচ্ছে...'}</strong><span>{roleLabel}</span></div><button className="icon-button" onClick={handleLogout} aria-label="Logout"><LogOut /></button></div>
+        <div className="sidebar-footer">
+          <div className="avatar">{initials}</div>
+          <div><strong>{userName || 'লোড হচ্ছে...'}</strong><span>{roleLabel}</span></div>
+          <button className="icon-button" onClick={handleLogout} aria-label="Logout"><LogOut /></button>
+        </div>
       </aside>
       <main className="main-content">
-        <header className="topbar"><button className="menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu /></button><div className="breadcrumb"><span>Workspace</span><b>/</b><strong>{activePage}</strong></div><div className="topbar-actions"><label className="global-search"><Search /><input placeholder="Search anything..." aria-label="Search" /></label><button className="icon-button" aria-label="Notifications"><Bell /><i /></button><div className="top-avatar">{initials}</div></div></header>
-        <div className="page-content">
-          {activePage === 'Dashboard' ? <Dashboard onNavigate={selectPage} userName={userName} /> : activePage === 'Products' ? <ProductsPage canManage={canManage} /> : activePage === 'Sales' ? <SalesPage canManage={canManage} /> : activePage === 'Customers' ? <CustomersPage canManage={canManage} /> : activePage === 'Suppliers' ? <SuppliersPage canManage={canManage} /> : activePage === 'Purchases' ? <PurchasesPage canManage={canManage} /> : activePage === 'Categories' ? <CategoriesPage canManage={canManage} /> : activePage === 'Brands' ? <BrandsPage canManage={canManage} /> : activePage === 'Inventory' ? <InventoryPage canManage={canManage} /> : activePage === 'User Management' ? <UsersPage isAdmin={isAdmin} /> : activePage === 'Reports' ? <ReportsPage canManage={canManage} /> : activePage === 'Payments & Dues' ? <PaymentsPage canManage={canManage} /> : <SectionPage page={activePage} query={query} setQuery={setQuery} filteredProducts={filteredProducts} onNavigate={selectPage} />}
-        </div>
+        <header className="topbar">
+          <button className="menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu /></button>
+          <div className="breadcrumb"><span>Workspace</span><b>/</b><strong>{activePage}</strong></div>
+          <div className="topbar-actions"><div className="top-avatar">{initials}</div></div>
+        </header>
+        <div className="page-content">{renderPage()}</div>
       </main>
     </div>
+  )
+}
+
+function ComingSoon({ title }: { title: string }) {
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">Workspace / {title}</p>
+          <h1>{title}</h1>
+          <p className="subheading">এই অংশটি এখনো তৈরি হয়নি।</p>
+        </div>
+      </div>
+      <section className="panel table-panel">
+        <p className="p-6 text-sm text-gray-600">
+          ফেরত (গ্রাহকের ফেরত ও সরবরাহকারীকে ফেরত) এখনো backend-এ যুক্ত হয়নি। যুক্ত হলে এখানে দেখানো হবে।
+        </p>
+      </section>
+    </>
   )
 }
 
@@ -390,14 +448,5 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
     </>
   )
 }
-
-function SectionPage({ page, query, setQuery, filteredProducts, onNavigate }: { page: PageKey; query: string; setQuery: (query: string) => void; filteredProducts: typeof products; onNavigate: (page: PageKey) => void }) {
-  const isProducts = page === 'Products' || page === 'Inventory'
-  return <><div className="page-heading"><div><p className="eyebrow">Workspace / {page}</p><h1>{page}</h1><p className="subheading">Manage and monitor your {page.toLowerCase()} in one place.</p></div><button className="primary-button"><Plus /> Add {page === 'Products' ? 'product' : 'record'}</button></div><div className="section-stat-row"><div className="small-stat"><span>Total records</span><strong>{page === 'Products' ? '1,248' : '186'}</strong><small>Updated just now</small></div><div className="small-stat"><span>Active this month</span><strong>{page === 'Customers' ? '892' : '94%'}</strong><small className="positive">↑ 8.4% from last month</small></div><div className="small-stat"><span>Pending action</span><strong>{page === 'Inventory' ? '24' : '12'}</strong><small>Requires review</small></div></div><section className="panel table-panel"><div className="table-toolbar"><div className="table-title"><h2>{isProducts ? (page === 'Inventory' ? 'Inventory levels' : 'Product catalog') : `${page} list`}</h2><span>{isProducts ? filteredProducts.length : 12} records</span></div><div className="toolbar-actions"><label className="table-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search records..." /></label><button className="filter-button">Filter <ChevronDown /></button></div></div>{isProducts ? <ProductTable rows={filteredProducts} /> : <GenericTable page={page} />}</section><button className="back-dashboard" onClick={() => onNavigate('Dashboard')}>← Back to dashboard</button></>
-}
-
-function ProductTable({ rows }: { rows: typeof products }) { return <div className="table-scroll"><table><thead><tr><th>Product</th><th>Category</th><th>Brand</th><th>Stock</th><th>Price</th><th>Status</th><th /></tr></thead><tbody>{rows.map((product) => <tr key={product.sku}><td><div className="product-cell"><div className="product-thumb"><Package /></div><div><strong>{product.name}</strong><span>{product.sku}</span></div></div></td><td>{product.category}</td><td>{product.brand}</td><td><strong className={product.stock < 20 ? 'stock-low' : ''}>{product.stock}</strong></td><td>{product.price}</td><td><span className={`status ${product.status.toLowerCase().replaceAll(' ', '-')}`}>{product.status}</span></td><td><button className="row-menu" aria-label={`Actions for ${product.name}`}>•••</button></td></tr>)}</tbody></table></div> }
-
-function GenericTable({ page }: { page: PageKey }) { const names = ['PO-2024-0186', 'SO-2024-0912', 'RET-2024-0042', 'INV-2024-0221']; return <div className="table-scroll"><table><thead><tr><th>Reference</th><th>Name</th><th>Date</th><th>Amount</th><th>Status</th><th /></tr></thead><tbody>{names.map((name, index) => <tr key={name}><td><strong className="ref-code">{page.slice(0, 3).toUpperCase()}-{String(186 - index).padStart(4, '0')}</strong></td><td>{name}</td><td>Oct {14 - index}, 2024</td><td>${(3200 - index * 418).toLocaleString()}</td><td><span className={`status ${index === 2 ? 'pending' : 'in-stock'}`}>{index === 2 ? 'Pending' : 'Completed'}</span></td><td><button className="row-menu" aria-label={`Actions for ${name}`}>•••</button></td></tr>)}</tbody></table></div> }
 
 export default App
