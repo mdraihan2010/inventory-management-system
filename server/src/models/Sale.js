@@ -27,6 +27,8 @@ const saleSchema = new mongoose.Schema(
     grandTotal: { type: Number, required: true, min: 0 },
     paidAmount: { type: Number, default: 0, min: 0 },
     outstandingAmount: { type: Number, default: 0, min: 0 },
+    // ফেরত দেওয়া পণ্যের মোট মূল্য। grandTotal বদলায় না, তাই আসল বিক্রির হিসাব থেকে যায়
+    returnedAmount: { type: Number, default: 0, min: 0 },
     paymentStatus: { type: String, enum: ["PAID", "PARTIALLY_PAID", "UNPAID"], default: "UNPAID" },
     status: { type: String, enum: ["DRAFT", "COMPLETED", "CANCELLED"], default: "DRAFT" },
     saleDate: { type: Date, default: Date.now },
