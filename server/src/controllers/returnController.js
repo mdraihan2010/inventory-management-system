@@ -261,7 +261,7 @@ export async function createCustomerReturn(req, res) {
   }
 }
 
-// ফেরতের তালিকা, পাতা ভাগ করে
+// ফেরতের তালিকা, পাতা ভাগ করে। গ্রাহক, সরবরাহকারী, বিক্রি ও ক্রয়ের নাম সহ
 export async function getReturns(req, res) {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
@@ -278,7 +278,9 @@ export async function getReturns(req, res) {
     const [data, total] = await Promise.all([
       Return.find(filter)
         .populate("sale", "saleNumber")
+        .populate("purchase", "purchaseNumber")
         .populate("customer", "name")
+        .populate("supplier", "name companyName")
         .populate("createdBy", "name")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
