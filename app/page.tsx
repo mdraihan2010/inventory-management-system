@@ -36,6 +36,7 @@ import { PurchasesPage } from '@/components/purchases-page'
 import { CategoriesPage, BrandsPage } from '@/components/catalog-page'
 import { InventoryPage } from '@/components/inventory-page'
 import { UsersPage } from '@/components/users-page'
+import { ReportsPage } from '@/components/reports-page'
 
 type PageKey = 'Dashboard' | 'Products' | 'Categories' | 'Brands' | 'Inventory' | 'Purchases' | 'Sales' | 'Customers' | 'Suppliers' | 'Returns' | 'Payments & Dues' | 'Reports' | 'User Management'
 
@@ -207,7 +208,7 @@ function App() {
       <main className="main-content">
         <header className="topbar"><button className="menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu /></button><div className="breadcrumb"><span>Workspace</span><b>/</b><strong>{activePage}</strong></div><div className="topbar-actions"><label className="global-search"><Search /><input placeholder="Search anything..." aria-label="Search" /></label><button className="icon-button" aria-label="Notifications"><Bell /><i /></button><div className="top-avatar">{initials}</div></div></header>
         <div className="page-content">
-          {activePage === 'Dashboard' ? <Dashboard onNavigate={selectPage} userName={userName} /> : activePage === 'Products' ? <ProductsPage canManage={canManage} /> : activePage === 'Sales' ? <SalesPage canManage={canManage} /> : activePage === 'Customers' ? <CustomersPage canManage={canManage} /> : activePage === 'Suppliers' ? <SuppliersPage canManage={canManage} /> : activePage === 'Purchases' ? <PurchasesPage canManage={canManage} /> : activePage === 'Categories' ? <CategoriesPage canManage={canManage} /> : activePage === 'Brands' ? <BrandsPage canManage={canManage} /> : activePage === 'Inventory' ? <InventoryPage canManage={canManage} /> : activePage === 'User Management' ? <UsersPage isAdmin={isAdmin} /> : <SectionPage page={activePage} query={query} setQuery={setQuery} filteredProducts={filteredProducts} onNavigate={selectPage} />}
+          {activePage === 'Dashboard' ? <Dashboard onNavigate={selectPage} userName={userName} /> : activePage === 'Products' ? <ProductsPage canManage={canManage} /> : activePage === 'Sales' ? <SalesPage canManage={canManage} /> : activePage === 'Customers' ? <CustomersPage canManage={canManage} /> : activePage === 'Suppliers' ? <SuppliersPage canManage={canManage} /> : activePage === 'Purchases' ? <PurchasesPage canManage={canManage} /> : activePage === 'Categories' ? <CategoriesPage canManage={canManage} /> : activePage === 'Brands' ? <BrandsPage canManage={canManage} /> : activePage === 'Inventory' ? <InventoryPage canManage={canManage} /> : activePage === 'User Management' ? <UsersPage isAdmin={isAdmin} /> : activePage === 'Reports' ? <ReportsPage canManage={canManage} /> : <SectionPage page={activePage} query={query} setQuery={setQuery} filteredProducts={filteredProducts} onNavigate={selectPage} />}
         </div>
       </main>
     </div>
