@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Power, X } from 'lucide-react'
@@ -254,11 +254,11 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
                   {canManage && (
                     <td>
                       <div className="flex gap-2">
-                        <button className="icon-button" title="সম্পাদনা" aria-label={`Edit ${product.name}`} onClick={() => setModal({ product })}>
+                        <button className="rounded-md p-1.5 text-indigo-600 transition hover:bg-indigo-50" title="সম্পাদনা" aria-label={`Edit ${product.name}`} onClick={() => setModal({ product })}>
                           <Pencil />
                         </button>
                         <button
-                          className="icon-button"
+                          className={product.isActive ? 'rounded-md p-1.5 text-red-600 transition hover:bg-red-50' : 'rounded-md p-1.5 text-emerald-600 transition hover:bg-emerald-50'}
                           title={product.isActive ? 'বন্ধ করুন' : 'চালু করুন'}
                           aria-label={`Toggle ${product.name}`}
                           onClick={() => toggleActive(product)}

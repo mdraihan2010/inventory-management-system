@@ -1,4 +1,5 @@
-﻿'use client'
+'use client'
+import { rowAction } from '@/components/ui/row-action'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Power, X } from 'lucide-react'
@@ -210,14 +211,14 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
-                      <button className={buttonClass} onClick={() => setDetails(customer)}>বিস্তারিত</button>
+                      <button className={rowAction.view} onClick={() => setDetails(customer)}>বিস্তারিত</button>
                       {canManage && (
                         <>
-                          <button className={buttonClass} onClick={() => setForm({ customer })}>
+                          <button className={rowAction.edit} onClick={() => setForm({ customer })}>
                             <Pencil className="inline size-3" /> সম্পাদনা
                           </button>
                           <button
-                            className={buttonClass}
+                            className={customer.isActive ? rowAction.danger : rowAction.success}
                             disabled={busyId === customer._id}
                             onClick={() => toggleActive(customer)}
                           >

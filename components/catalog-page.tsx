@@ -1,4 +1,5 @@
-﻿'use client'
+'use client'
+import { rowAction } from '@/components/ui/row-action'
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Power, X } from 'lucide-react'
@@ -165,11 +166,11 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
                   {canManage && (
                     <td>
                       <div className="flex gap-1">
-                        <button className={buttonClass} onClick={() => setEditing({ item })}>
+                        <button className={rowAction.edit} onClick={() => setEditing({ item })}>
                           <Pencil className="inline size-3" /> সম্পাদনা
                         </button>
                         <button
-                          className={buttonClass}
+                          className={item.isActive ? rowAction.danger : rowAction.success}
                           disabled={busyId === item._id}
                           onClick={() => toggleActive(item)}
                         >

@@ -1,4 +1,5 @@
-﻿'use client'
+'use client'
+import { rowAction } from '@/components/ui/row-action'
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
@@ -243,7 +244,7 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
                     <td><span className={`status ${STATE_CLASS[state]}`}>{STATE_LABEL[state]}</span></td>
                     <td>
                       <button
-                        className="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                        className={rowAction.history}
                         onClick={() => setSelectedId(product._id)}
                       >
                         ইতিহাস

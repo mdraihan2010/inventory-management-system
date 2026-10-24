@@ -1,4 +1,5 @@
-﻿'use client'
+'use client'
+import { rowAction } from '@/components/ui/row-action'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
@@ -241,7 +242,7 @@ function UsersManager() {
                         <span className="text-xs text-gray-400">—</span>
                       ) : (
                         <button
-                          className={buttonClass}
+                          className={user.isActive ? rowAction.danger : rowAction.success}
                           disabled={busyId === user._id}
                           onClick={() => toggleActive(user)}
                         >

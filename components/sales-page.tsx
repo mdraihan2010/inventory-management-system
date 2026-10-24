@@ -1,4 +1,5 @@
-﻿'use client'
+'use client'
+import { rowAction } from '@/components/ui/row-action'
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
@@ -252,19 +253,19 @@ export function SalesPage({ canManage }: { canManage: boolean }) {
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
-                      <button className={buttonClass} onClick={() => setDetailSale(sale)}>বিস্তারিত</button>
+                      <button className={rowAction.view} onClick={() => setDetailSale(sale)}>বিস্তারিত</button>
                       {sale.status === 'DRAFT' && (
-                        <button className={buttonClass} disabled={busyId === sale._id} onClick={() => runAction(sale, 'complete')}>
+                        <button className={rowAction.success} disabled={busyId === sale._id} onClick={() => runAction(sale, 'complete')}>
                           সম্পন্ন করুন
                         </button>
                       )}
                       {sale.status === 'DRAFT' && canManage && (
-                        <button className={buttonClass} disabled={busyId === sale._id} onClick={() => runAction(sale, 'cancel')}>
+                        <button className={rowAction.danger} disabled={busyId === sale._id} onClick={() => runAction(sale, 'cancel')}>
                           বাতিল
                         </button>
                       )}
                       {sale.status === 'COMPLETED' && sale.outstandingAmount > 0 && (
-                        <button className={buttonClass} onClick={() => setPaySale(sale)}>পরিশোধ নিন</button>
+                        <button className={rowAction.success} onClick={() => setPaySale(sale)}>পরিশোধ নিন</button>
                       )}
                     </div>
                   </td>

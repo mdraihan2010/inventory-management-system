@@ -1,4 +1,5 @@
-﻿'use client'
+'use client'
+import { rowAction } from '@/components/ui/row-action'
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
@@ -245,14 +246,14 @@ function PurchasesManager() {
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
-                      <button className={buttonClass} onClick={() => setDetailRow(purchase)}>বিস্তারিত</button>
+                      <button className={rowAction.view} onClick={() => setDetailRow(purchase)}>বিস্তারিত</button>
                       {purchase.status === 'DRAFT' && (
-                        <button className={buttonClass} disabled={busyId === purchase._id} onClick={() => runAction(purchase, 'complete')}>
+                        <button className={rowAction.success} disabled={busyId === purchase._id} onClick={() => runAction(purchase, 'complete')}>
                           সম্পন্ন করুন
                         </button>
                       )}
                       {purchase.status === 'DRAFT' && (
-                        <button className={buttonClass} disabled={busyId === purchase._id} onClick={() => runAction(purchase, 'cancel')}>
+                        <button className={rowAction.danger} disabled={busyId === purchase._id} onClick={() => runAction(purchase, 'cancel')}>
                           বাতিল
                         </button>
                       )}
