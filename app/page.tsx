@@ -34,6 +34,7 @@ import { InventoryPage } from '@/components/inventory-page'
 import { UsersPage } from '@/components/users-page'
 import { ReportsPage } from '@/components/reports-page'
 import { PaymentsPage } from '@/components/payments-page'
+import { ReturnsPage } from '@/components/returns-page'
 
 type PageKey = 'Dashboard' | 'Products' | 'Categories' | 'Brands' | 'Inventory' | 'Purchases' | 'Sales' | 'Customers' | 'Suppliers' | 'Returns' | 'Payments & Dues' | 'Reports' | 'User Management'
 
@@ -207,7 +208,7 @@ function App() {
       case 'User Management':
         return <UsersPage isAdmin={isAdmin} />
       case 'Returns':
-        return <ComingSoon title="Returns" />
+        return <ReturnsPage canManage={canManage} />
       default:
         return null
     }
@@ -252,25 +253,6 @@ function App() {
         <div className="page-content">{renderPage()}</div>
       </main>
     </div>
-  )
-}
-
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">Workspace / {title}</p>
-          <h1>{title}</h1>
-          <p className="subheading">এই অংশটি এখনো তৈরি হয়নি।</p>
-        </div>
-      </div>
-      <section className="panel table-panel">
-        <p className="p-6 text-sm text-gray-600">
-          ফেরত (গ্রাহকের ফেরত ও সরবরাহকারীকে ফেরত) এখনো backend-এ যুক্ত হয়নি। যুক্ত হলে এখানে দেখানো হবে।
-        </p>
-      </section>
-    </>
   )
 }
 
