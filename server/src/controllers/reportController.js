@@ -1,6 +1,7 @@
 ﻿import Sale from "../models/Sale.js";
 import Purchase from "../models/Purchase.js";
 import Product from "../models/Product.js";
+import Return from "../models/Return.js";
 
 function roundMoney(value) {
   return Math.round(value * 100) / 100;
@@ -29,7 +30,28 @@ function dateRange(query) {
   return Object.keys(range).length ? range : null;
 }
 
+// প্রতিটি বিক্রির সাথে তার গ্রাহক-ফেরতের নগদ অংশ যোগ করে
+function cashRefundLookup() {
+  return {
+    $lookup: {
+      from: "returns",
+      let: { saleId: "$_id" },
+      pipeline: [
+        {
+          $match: {
+            $expr: {
+              $and: [{ $eq: ["$sale", "$$saleId"] }, { $eq: ["$kind", "CUSTOMER"] }],
+            },
+          },
+        },
+      ],
+      as: "refunds",
+    },
+  };
+}
+
 // GET /api/v1/reports/sales
+// ফেরত বিক্রির মোট থেকে বাদ যায়। নগদ ফেরত পরিশোধ থেকে বাদ যায়
 export async function salesReport(req, res) {
   try {
     const range = dateRange(req.query);
@@ -38,24 +60,40 @@ export async function salesReport(req, res) {
 
     const [summary] = await Sale.aggregate([
       { $match: match },
+      cashRefundLookup(),
+      {
+        $addFields: {
+          returnedAmount: { $ifNull: ["$returnedAmount", 0] },
+          paidAmount: { $ifNull: ["$paidAmount", 0] },
+          cashRefunded: { $sum: "$refunds.cashRefund" },
+        },
+      },
       {
         $group: {
           _id: null,
           count: { $sum: 1 },
-          totalSales: { $sum: "$grandTotal" },
-          totalPaid: { $sum: "$paidAmount" },
+          grossSales: { $sum: "$grandTotal" },
+          totalReturned: { $sum: "$returnedAmount" },
+          grossPaid: { $sum: "$paidAmount" },
+          totalCashRefunded: { $sum: "$cashRefunded" },
           totalOutstanding: { $sum: "$outstandingAmount" },
         },
       },
     ]);
 
+    const count = summary ? summary.count : 0;
+    const totalReturned = roundMoney(summary ? summary.totalReturned : 0);
+    const totalCashRefunded = roundMoney(summary ? summary.totalCashRefunded : 0);
+
     res.status(200).json({
       success: true,
       data: {
-        count: summary ? summary.count : 0,
-        totalSales: roundMoney(summary ? summary.totalSales : 0),
-        totalPaid: roundMoney(summary ? summary.totalPaid : 0),
+        count,
+        totalSales: roundMoney((summary ? summary.grossSales : 0) - totalReturned),
+        totalPaid: roundMoney((summary ? summary.grossPaid : 0) - totalCashRefunded),
         totalOutstanding: roundMoney(summary ? summary.totalOutstanding : 0),
+        totalReturned,
+        totalCashRefunded,
       },
     });
   } catch (error) {
@@ -68,6 +106,7 @@ export async function salesReport(req, res) {
 }
 
 // GET /api/v1/reports/purchases
+// সরবরাহকারীকে ফেরত দেওয়া পণ্যের মূল্য ক্রয় থেকে বাদ যায়
 export async function purchasesReport(req, res) {
   try {
     const range = dateRange(req.query);
@@ -77,19 +116,28 @@ export async function purchasesReport(req, res) {
     const [summary] = await Purchase.aggregate([
       { $match: match },
       {
+        $addFields: {
+          returnedAmount: { $ifNull: ["$returnedAmount", 0] },
+        },
+      },
+      {
         $group: {
           _id: null,
           count: { $sum: 1 },
-          totalPurchases: { $sum: "$grandTotal" },
+          grossPurchases: { $sum: "$grandTotal" },
+          totalReturned: { $sum: "$returnedAmount" },
         },
       },
     ]);
+
+    const totalReturned = roundMoney(summary ? summary.totalReturned : 0);
 
     res.status(200).json({
       success: true,
       data: {
         count: summary ? summary.count : 0,
-        totalPurchases: roundMoney(summary ? summary.totalPurchases : 0),
+        totalPurchases: roundMoney((summary ? summary.grossPurchases : 0) - totalReturned),
+        totalReturned,
       },
     });
   } catch (error) {
@@ -136,7 +184,7 @@ export async function stockValueReport(req, res) {
 }
 
 // GET /api/v1/reports/profit
-// লাভ শুধু ক্রয়মূল্যসহ বিক্রির লাইন থেকে হিসাব হয়
+// লাভ শুধু ক্রয়মূল্যসহ বিক্রির লাইন থেকে হিসাব হয়। ফেরত লাইন এখান থেকে বাদ যায়
 export async function profitReport(req, res) {
   try {
     const range = dateRange(req.query);
@@ -146,7 +194,7 @@ export async function profitReport(req, res) {
     // এই লাইনে costPrice একটি সংখ্যা হিসেবে আছে কিনা। পুরোনো লাইনে field-ই নেই, তাই এটা false
     const hasCost = { $in: [{ $type: "$items.costPrice" }, ["double", "int", "long", "decimal"]] };
 
-    const [summary] = await Sale.aggregate([
+    const [sales] = await Sale.aggregate([
       { $match: match },
       { $unwind: "$items" },
       {
@@ -165,8 +213,39 @@ export async function profitReport(req, res) {
       },
     ]);
 
-    const revenue = roundMoney(summary ? summary.revenueWithCost : 0);
-    const cost = roundMoney(summary ? summary.cost : 0);
+    // ফেরত দেওয়া লাইনগুলো। শুধু সেই বিক্রি থেকে, যেগুলো এই সময়সীমায় পড়ে
+    const returnedMatch = { "saleDoc.status": "COMPLETED" };
+    if (range) returnedMatch["saleDoc.saleDate"] = range;
+
+    const [returned] = await Return.aggregate([
+      { $match: { kind: "CUSTOMER" } },
+      { $lookup: { from: "sales", localField: "sale", foreignField: "_id", as: "saleDoc" } },
+      { $unwind: "$saleDoc" },
+      { $match: returnedMatch },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: null,
+          returnedRevenueWithCost: { $sum: { $cond: [hasCost, "$items.lineTotal", 0] } },
+          returnedCost: {
+            $sum: {
+              $cond: [hasCost, { $multiply: ["$items.costPrice", "$items.quantity"] }, 0],
+            },
+          },
+          returnedRevenueWithoutCost: { $sum: { $cond: [hasCost, 0, "$items.lineTotal"] } },
+        },
+      },
+    ]);
+
+    const revenue = roundMoney(
+      (sales ? sales.revenueWithCost : 0) - (returned ? returned.returnedRevenueWithCost : 0)
+    );
+    const cost = roundMoney(
+      (sales ? sales.cost : 0) - (returned ? returned.returnedCost : 0)
+    );
+    const revenueWithoutCostPrice = roundMoney(
+      (sales ? sales.revenueWithoutCostPrice : 0) - (returned ? returned.returnedRevenueWithoutCost : 0)
+    );
 
     res.status(200).json({
       success: true,
@@ -174,10 +253,10 @@ export async function profitReport(req, res) {
         revenue,
         cost,
         grossProfit: roundMoney(revenue - cost),
-        linesWithCostPrice: summary ? summary.linesWithCostPrice : 0,
-        linesWithoutCostPrice: summary ? summary.linesWithoutCostPrice : 0,
-        revenueWithoutCostPrice: roundMoney(summary ? summary.revenueWithoutCostPrice : 0),
-        note: "Profit is calculated only on lines that have a recorded cost price. Gross profit only.",
+        linesWithCostPrice: sales ? sales.linesWithCostPrice : 0,
+        linesWithoutCostPrice: sales ? sales.linesWithoutCostPrice : 0,
+        revenueWithoutCostPrice,
+        note: "Profit is calculated only on lines that have a recorded cost price. Returns are deducted. Gross profit only.",
       },
     });
   } catch (error) {
