@@ -5,7 +5,7 @@ import { Moon, Sun } from 'lucide-react'
 
 const STORAGE_KEY = 'stockpilot-theme'
 
-// Light ও Dark mode-এর টোগল। পছন্দ browser-এ সংরক্ষিত থাকে
+// Light and dark mode toggle. The choice is saved in the browser
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const [dark, setDark] = useState(false)
 
@@ -20,7 +20,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     try {
       localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light')
     } catch {
-      // localStorage না থাকলে শুধু এই পাতায় কাজ করবে
+      // If localStorage is unavailable, the choice applies to this page only
     }
   }
 
@@ -28,7 +28,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
-      aria-label={dark ? 'Light mode চালু করুন' : 'Dark mode চালু করুন'}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={dark ? 'Light mode' : 'Dark mode'}
       className={`flex size-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 ${className}`}
     >

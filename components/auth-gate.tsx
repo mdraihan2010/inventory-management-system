@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Boxes, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react'
@@ -14,7 +14,8 @@ type LoginResponse = {
 
 type Screen = 'checking' | 'login' | 'change-password' | 'app'
 
-const WAKE_UP_MESSAGE = 'সার্ভার জাগানো হচ্ছে। প্রথমবার ২-৩ মিনিট পর্যন্ত লাগতে পারে, অনুগ্রহ করে অপেক্ষা করুন।'
+const WAKE_UP_MESSAGE =
+  'The server is waking up. The first load can take 2 to 3 minutes. Please wait.'
 
 const inputClass =
   'block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15'
@@ -26,7 +27,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
 
-    // তিন সেকেন্ডের বেশি লাগলে ব্যবহারকারীকে জানানো হয় যে সার্ভার জাগছে
+    // If the check takes more than three seconds, tell the user the server is waking up
     const slowTimer = setTimeout(() => {
       if (!cancelled) setSlowCheck(true)
     }, 3000)
@@ -38,7 +39,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       }
 
       try {
-        // জমে থাকা token এখনো বৈধ কিনা সার্ভার থেকে যাচাই করা হচ্ছে
+        // Check with the server that the saved token is still valid
         await apiRequest('/auth/me')
         if (!cancelled) setScreen('app')
       } catch {
@@ -56,10 +57,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (screen === 'checking') {
     return (
-      <AuthShell title="যাচাই করা হচ্ছে" subtitle="আপনার সেশন দেখা হচ্ছে">
+      <AuthShell title="Checking session" subtitle="Verifying your saved sign-in">
         <div className="flex items-center gap-3 text-sm text-gray-600">
           <Loader2 className="size-5 animate-spin text-blue-600" />
-          <span>{slowCheck ? WAKE_UP_MESSAGE : 'সার্ভার যাচাই করা হচ্ছে...'}</span>
+          <span>{slowCheck ? WAKE_UP_MESSAGE : 'Checking the server...'}</span>
         </div>
       </AuthShell>
     )
@@ -103,7 +104,7 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle: str
           {children}
         </div>
 
-        <p className="mt-6 text-center text-xs text-gray-400">ইনভেন্টরি ও বিক্রি ব্যবস্থাপনা</p>
+        <p className="mt-6 text-center text-xs text-gray-400">Inventory and sales management</p>
       </div>
     </div>
   )
@@ -153,7 +154,7 @@ function PasswordInput({
       <button
         type="button"
         onClick={() => setVisible((current) => !current)}
-        aria-label={visible ? 'Password লুকান' : 'Password দেখুন'}
+        aria-label={visible ? 'Hide password' : 'Show password'}
         className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
       >
         {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -175,7 +176,7 @@ function LoginForm({ onSuccess }: { onSuccess: (mustChangePassword: boolean) => 
   const [submitting, setSubmitting] = useState(false)
   const [slow, setSlow] = useState(false)
 
-  // অনুরোধ তিন সেকেন্ডের বেশি চললে সার্ভার জাগার বার্তা দেখানো হয়
+  // If the request takes more than three seconds, show the server wake-up message
   useEffect(() => {
     if (!submitting) {
       setSlow(false)
@@ -198,13 +199,13 @@ function LoginForm({ onSuccess }: { onSuccess: (mustChangePassword: boolean) => 
       setToken(response.token)
       onSuccess(response.user.mustChangePassword === true)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।')
+      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
       setSubmitting(false)
     }
   }
 
   return (
-    <AuthShell title="স্বাগতম" subtitle="আপনার email ও password দিয়ে প্রবেশ করুন">
+    <AuthShell title="Welcome back" subtitle="Sign in with your email and password">
       <form onSubmit={handleSubmit} className="space-y-5">
         <Field id="email" label="Email" icon={<Mail className="size-4" />}>
           <input
@@ -235,10 +236,10 @@ function LoginForm({ onSuccess }: { onSuccess: (mustChangePassword: boolean) => 
           {submitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              প্রবেশ করা হচ্ছে...
+              Signing in...
             </>
           ) : (
-            'প্রবেশ করুন'
+            'Sign in'
           )}
         </Button>
 
@@ -262,11 +263,11 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
     setError('')
 
     if (newPassword.length < 8) {
-      setError('নতুন password কমপক্ষে ৮ অক্ষরের হতে হবে।')
+      setError('The new password must be at least 8 characters.')
       return
     }
     if (newPassword !== confirmPassword) {
-      setError('দুটো নতুন password মিলছে না।')
+      setError('The two new passwords do not match.')
       return
     }
 
@@ -279,15 +280,15 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
       })
       onSuccess()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।')
+      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
       setSubmitting(false)
     }
   }
 
   return (
-    <AuthShell title="Password বদলান" subtitle="প্রথমবার প্রবেশের জন্য নতুন password ঠিক করা প্রয়োজন">
+    <AuthShell title="Change your password" subtitle="Set a new password before you continue">
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Field id="current" label="বর্তমান password" icon={<Lock className="size-4" />}>
+        <Field id="current" label="Current password" icon={<Lock className="size-4" />}>
           <PasswordInput
             id="current"
             value={currentPassword}
@@ -296,7 +297,7 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
           />
         </Field>
 
-        <Field id="new" label="নতুন password" icon={<Lock className="size-4" />}>
+        <Field id="new" label="New password" icon={<Lock className="size-4" />}>
           <PasswordInput
             id="new"
             value={newPassword}
@@ -305,7 +306,7 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
           />
         </Field>
 
-        <Field id="confirm" label="নতুন password আবার লিখুন" icon={<Lock className="size-4" />}>
+        <Field id="confirm" label="Confirm new password" icon={<Lock className="size-4" />}>
           <PasswordInput
             id="confirm"
             value={confirmPassword}
@@ -320,10 +321,10 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
           {submitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              সংরক্ষণ করা হচ্ছে...
+              Saving...
             </>
           ) : (
-            'Password সংরক্ষণ করুন'
+            'Save password'
           )}
         </Button>
       </form>
