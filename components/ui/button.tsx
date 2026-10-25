@@ -1,11 +1,11 @@
-﻿import { Button as ButtonPrimitive } from '@base-ui/react/button'
+import { Button as ButtonPrimitive } from '@base-ui/react/button'
 import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
-// সব বাটনের রঙের নিয়ম এক জায়গায়:
-// সেভ, জমা, লগইন = নীল (default)। সফল কাজ = সবুজ (success)।
-// বন্ধ, বাতিল, মুছে ফেলা = লাল (destructive)। বাতিল বা পেছনে যাওয়া = সাদা রূপরেখা (outline)।
+// Button colour rules in one place:
+// Save, submit, sign in = blue (default). Successful action = green (success).
+// Deactivate, cancel, delete = red (destructive). Cancel or go back = white outline (outline).
 const buttonVariants = cva(
   'inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors outline-none select-none focus-visible:ring-4 focus-visible:ring-blue-500/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4',
   {

@@ -1,4 +1,4 @@
-﻿const API_BASE_URL =
+const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ||
   'http://localhost:5000/api/v1'
 
@@ -57,7 +57,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const data = await response.json().catch(() => null)
 
-  // Token মেয়াদোত্তীর্ণ বা অবৈধ হলে জমে থাকা token মুছে দেওয়া হয়
+  // If the token has expired or is invalid, the saved token is removed
   if (response.status === 401 && token) {
     clearToken()
   }

@@ -1,4 +1,4 @@
-﻿import { Analytics } from '@vercel/analytics/next'
+import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthGate } from '@/components/auth-gate'
@@ -34,7 +34,7 @@ export const viewport: Viewport = {
   ],
 }
 
-// পাতা দেখানোর আগেই theme ঠিক করে, যাতে সাদা ঝলক না আসে
+// Sets the theme before the page is shown, so there is no white flash
 const themeScript = `(function(){try{var t=localStorage.getItem('stockpilot-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
-﻿// সারির ভেতরের বাটনের রঙ। প্রতিটি কাজের আলাদা রঙ, যাতে এক নজরে বোঝা যায়:
-// বিস্তারিত = আকাশী, সম্পাদনা = ইন্ডিগো, ইতিহাস = বেগুনি,
-// সম্পন্ন / চালু / পরিশোধ = সবুজ, বাতিল / বন্ধ = লাল।
+// Colours for buttons inside table rows. Each action has its own colour, so it is easy to tell apart:
+// Details = sky, edit = indigo, history = violet,
+// complete / activate / collect payment = green, cancel / deactivate = red.
 const base =
   'rounded-md border px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40'
 
