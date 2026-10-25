@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { rowAction } from '@/components/ui/row-action'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
@@ -22,22 +22,19 @@ type UsersResponse = { success: boolean; count: number; data: AppUser[] }
 type MeResponse = { success: boolean; user: { _id: string } }
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: 'ADMINISTRATOR', label: 'প্রশাসক (Administrator)' },
-  { value: 'MANAGER', label: 'ম্যানেজার (Manager)' },
-  { value: 'STAFF', label: 'স্টাফ (Staff)' },
+  { value: 'ADMINISTRATOR', label: 'Administrator' },
+  { value: 'MANAGER', label: 'Manager' },
+  { value: 'STAFF', label: 'Staff' },
 ]
 
 const ROLE_LABEL: Record<Role, string> = {
-  ADMINISTRATOR: 'প্রশাসক',
-  MANAGER: 'ম্যানেজার',
-  STAFF: 'স্টাফ',
+  ADMINISTRATOR: 'Administrator',
+  MANAGER: 'Manager',
+  STAFF: 'Staff',
 }
 
 const inputClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900'
-
-const buttonClass =
-  'rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40'
 
 export function UsersPage({ isAdmin }: { isAdmin: boolean }) {
   if (!isAdmin) {
@@ -46,11 +43,11 @@ export function UsersPage({ isAdmin }: { isAdmin: boolean }) {
         <div className="page-heading">
           <div>
             <p className="eyebrow">Workspace / User Management</p>
-            <h1>ব্যবহারকারী ব্যবস্থাপনা</h1>
+            <h1>User Management</h1>
           </div>
         </div>
         <section className="panel table-panel">
-          <p className="p-6 text-sm text-gray-600">ব্যবহারকারী ব্যবস্থাপনা শুধু Administrator করতে পারবেন।</p>
+          <p className="p-6 text-sm text-gray-600">Only administrators can manage users.</p>
         </section>
       </>
     )
@@ -79,7 +76,7 @@ function UsersManager() {
       const response = await apiRequest<UsersResponse>('/users')
       setUsers(response.data)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'ব্যবহারকারীর তালিকা আনা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not load the user list.')
     } finally {
       setLoading(false)
     }
@@ -102,7 +99,7 @@ function UsersManager() {
 
   async function changeRole(user: AppUser, role: Role) {
     if (role === user.role) return
-    if (!window.confirm(`"${user.name}"-এর ভূমিকা "${ROLE_LABEL[role]}" করতে চান?`)) return
+    if (!window.confirm(`Change the role of "${user.name}" to "${ROLE_LABEL[role]}"?`)) return
 
     setError('')
     setNotice('')
@@ -110,19 +107,19 @@ function UsersManager() {
 
     try {
       await apiRequest(`/users/${user._id}`, { method: 'PATCH', body: { role } })
-      setNotice(`${user.name}-এর ভূমিকা "${ROLE_LABEL[role]}" করা হয়েছে।`)
+      setNotice(`${user.name}'s role has been changed to "${ROLE_LABEL[role]}".`)
       loadUsers()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'ভূমিকা বদলানো যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not change the role.')
     } finally {
       setBusyId(null)
     }
   }
 
   async function toggleActive(user: AppUser) {
-    const action = user.isActive ? 'বন্ধ' : 'চালু'
-    const extra = user.isActive ? ' বন্ধ করলে সে আর প্রবেশ করতে পারবে না।' : ''
-    if (!window.confirm(`"${user.name}"-কে ${action} করতে চান?${extra}`)) return
+    const action = user.isActive ? 'deactivate' : 'activate'
+    const extra = user.isActive ? ' If deactivated, they will not be able to sign in.' : ''
+    if (!window.confirm(`Do you want to ${action} "${user.name}"?${extra}`)) return
 
     setError('')
     setNotice('')
@@ -133,10 +130,10 @@ function UsersManager() {
         method: 'PATCH',
         body: { isActive: !user.isActive },
       })
-      setNotice(`${user.name} ${action} করা হয়েছে।`)
+      setNotice(`${user.name} has been ${user.isActive ? 'deactivated' : 'activated'}.`)
       loadUsers()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'পরিবর্তন সংরক্ষণ করা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not save the change.')
     } finally {
       setBusyId(null)
     }
@@ -147,29 +144,29 @@ function UsersManager() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Workspace / User Management</p>
-          <h1>ব্যবহারকারী ব্যবস্থাপনা</h1>
-          <p className="subheading">ব্যবহারকারী যোগ, ভূমিকা নির্ধারণ ও প্রবেশাধিকার নিয়ন্ত্রণ।</p>
+          <h1>User Management</h1>
+          <p className="subheading">Add users, assign roles and control access.</p>
         </div>
         <button className="primary-button" onClick={() => setCreating(true)}>
-          <Plus /> নতুন ব্যবহারকারী
+          <Plus /> New user
         </button>
       </div>
 
       <div className="section-stat-row">
         <div className="small-stat">
-          <span>মোট ব্যবহারকারী</span>
+          <span>Total users</span>
           <strong>{users.length}</strong>
-          <small>সব ভূমিকা মিলিয়ে</small>
+          <small>All roles combined</small>
         </div>
         <div className="small-stat">
-          <span>সক্রিয়</span>
+          <span>Active</span>
           <strong>{activeCount}</strong>
-          <small>এখন প্রবেশ করতে পারবে</small>
+          <small>Can sign in now</small>
         </div>
         <div className="small-stat">
-          <span>প্রশাসক</span>
+          <span>Administrators</span>
           <strong>{adminCount}</strong>
-          <small>সর্বোচ্চ অনুমতি</small>
+          <small>Highest access</small>
         </div>
       </div>
 
@@ -178,13 +175,13 @@ function UsersManager() {
       <section className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-title">
-            <h2>ব্যবহারকারীর তালিকা</h2>
-            <span>{visible.length} জন</span>
+            <h2>User list</h2>
+            <span>{visible.length} people</span>
           </div>
           <div className="toolbar-actions">
             <input
               className={inputClass + ' max-w-xs'}
-              placeholder="নাম বা email খুঁজুন..."
+              placeholder="Search by name or email..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -197,23 +194,23 @@ function UsersManager() {
           <table>
             <thead>
               <tr>
-                <th>নাম</th>
+                <th>Name</th>
                 <th>Email</th>
-                <th>ভূমিকা</th>
-                <th>অবস্থা</th>
-                <th>কাজ</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5}>লোড হচ্ছে...</td></tr>}
-              {!loading && visible.length === 0 && <tr><td colSpan={5}>কোনো ব্যবহারকারী পাওয়া যায়নি।</td></tr>}
+              {loading && <tr><td colSpan={5}>Loading...</td></tr>}
+              {!loading && visible.length === 0 && <tr><td colSpan={5}>No users found.</td></tr>}
               {!loading && visible.map((user) => {
                 const isSelf = user._id === myId
                 return (
                   <tr key={user._id}>
                     <td>
                       <strong>{user.name}</strong>
-                      {isSelf && <span className="ml-2 text-xs text-gray-500">(আপনি)</span>}
+                      {isSelf && <span className="ml-2 text-xs text-gray-500">(you)</span>}
                     </td>
                     <td>{user.email}</td>
                     <td>
@@ -234,26 +231,27 @@ function UsersManager() {
                     </td>
                     <td>
                       <span className={`status ${user.isActive ? 'in-stock' : 'out-of-stock'}`}>
-                        {user.isActive ? 'সক্রিয়' : 'বন্ধ'}
+                        {user.isActive ? 'Active' : 'Inactive'}
                       </span>
                       {user.mustChangePassword && (
-                        <p className="mt-1 text-xs text-gray-500">প্রথম প্রবেশে password বদলাবে</p>
+                        <p className="mt-1 text-xs text-gray-500">Must change password at first sign-in</p>
                       )}
                     </td>
                     <td>
                       {isSelf ? (
                         <span className="text-xs text-gray-400">—</span>
                       ) : (
-<div className="flex flex-wrap gap-1">
-<button className={rowAction.edit} onClick={() => setEditing(user)}>সম্পাদনা</button>
-<button className={rowAction.history} onClick={() => setResetting(user)}>পাসওয়ার্ড রিসেট</button>
-<button className={user.isActive ? rowAction.danger : rowAction.success}
-                          disabled={busyId === user._id}
-                          onClick={() => toggleActive(user)}
-                        >
-                          {user.isActive ? 'বন্ধ করুন' : 'চালু করুন'}
-                        </button>
-</div>
+                        <div className="flex flex-wrap gap-1">
+                          <button className={rowAction.edit} onClick={() => setEditing(user)}>Edit</button>
+                          <button className={rowAction.history} onClick={() => setResetting(user)}>Reset password</button>
+                          <button
+                            className={user.isActive ? rowAction.danger : rowAction.success}
+                            disabled={busyId === user._id}
+                            onClick={() => toggleActive(user)}
+                          >
+                            {user.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -291,7 +289,7 @@ function UsersManager() {
           onClose={() => setCreating(false)}
           onCreated={(name) => {
             setCreating(false)
-            setNotice(`${name} যোগ করা হয়েছে। সে প্রথম প্রবেশে password বদলাবে।`)
+            setNotice(`${name} added. They must change their password at first sign-in.`)
             loadUsers()
           }}
         />
@@ -329,15 +327,15 @@ function NewUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     setFormError('')
 
     if (!name.trim()) {
-      setFormError('নাম লিখুন।')
+      setFormError('Enter the name.')
       return
     }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setFormError('ইমেইল সঠিক ফরম্যাটে লিখুন, যেমন name@example.com।')
+      setFormError('Enter the email in a valid format, for example name@example.com.')
       return
     }
     if (password.length < 8) {
-      setFormError('Password কমপক্ষে ৮ অক্ষরের হতে হবে।')
+      setFormError('Password must be at least 8 characters.')
       return
     }
 
@@ -350,19 +348,19 @@ function NewUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       onCreated(name.trim())
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        setFormError('এই email দিয়ে আগে একজন ব্যবহারকারী আছে।')
+        setFormError('A user with this email already exists.')
       } else {
-        setFormError(err instanceof ApiError ? err.message : 'ব্যবহারকারী যোগ করা যায়নি।')
+        setFormError(err instanceof ApiError ? err.message : 'Could not add the user.')
       }
       setSaving(false)
     }
   }
 
   return (
-    <ModalShell title="নতুন ব্যবহারকারী" onClose={onClose}>
+    <ModalShell title="New user" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">নাম *</span>
+          <span className="text-sm font-medium text-gray-700">Name *</span>
           <input className={inputClass} value={name} onChange={(event: ChangeEvent<HTMLInputElement>) => setName(event.target.value)} />
         </label>
 
@@ -372,13 +370,13 @@ function NewUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">প্রাথমিক Password *</span>
+          <span className="text-sm font-medium text-gray-700">Initial password *</span>
           <input type="password" className={inputClass} value={password} onChange={(event: ChangeEvent<HTMLInputElement>) => setPassword(event.target.value)} />
-          <span className="text-xs text-gray-500">নতুন ব্যবহারকারী প্রথম প্রবেশের সময় নিজের password বদলাতে বাধ্য হবে।</span>
+          <span className="text-xs text-gray-500">The new user must change their password at first sign-in.</span>
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">ভূমিকা *</span>
+          <span className="text-sm font-medium text-gray-700">Role *</span>
           <select className={inputClass + ' bg-white'} value={role} onChange={(event) => setRole(event.target.value as Role)}>
             {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
@@ -388,10 +386,10 @@ function NewUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
-            বাতিল
+            Cancel
           </button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'যোগ করা হচ্ছে...' : 'ব্যবহারকারী যোগ করুন'}
+            {saving ? 'Adding...' : 'Add user'}
           </Button>
         </div>
       </form>

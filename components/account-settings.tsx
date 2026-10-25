@@ -19,7 +19,7 @@ const inputClass =
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/
 
 function errorText(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।'
+  return err instanceof ApiError ? err.message : 'Something went wrong. Please try again.'
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -49,7 +49,7 @@ export function AccountSettingsModal({ currentEmail, onClose, onEmailChanged }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg space-y-6 overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">আমার অ্যাকাউন্ট</h2>
+          <h2 className="text-lg font-semibold text-gray-900">My account</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-500">
             <X />
           </button>
@@ -78,15 +78,15 @@ function EmailSection({ currentEmail, onChanged }: { currentEmail: string; onCha
     const email = newEmail.trim().toLowerCase()
 
     if (!EMAIL_PATTERN.test(email)) {
-      setMessage({ tone: 'error', text: 'ইমেইল সঠিক ফরম্যাটে লিখুন, যেমন name@example.com।' })
+      setMessage({ tone: 'error', text: 'Enter the email in a valid format, for example name@example.com.' })
       return
     }
     if (email === currentEmail.toLowerCase()) {
-      setMessage({ tone: 'error', text: 'এটি আপনার বর্তমান ইমেইল।' })
+      setMessage({ tone: 'error', text: 'This is already your current email.' })
       return
     }
     if (!currentPassword) {
-      setMessage({ tone: 'error', text: 'বর্তমান password দিন।' })
+      setMessage({ tone: 'error', text: 'Enter your current password.' })
       return
     }
 
@@ -99,7 +99,7 @@ function EmailSection({ currentEmail, onChanged }: { currentEmail: string; onCha
       onChanged(email)
       setNewEmail('')
       setCurrentPassword('')
-      setMessage({ tone: 'ok', text: 'ইমেইল বদলানো হয়েছে। পরের login এই নতুন ইমেইল দিয়ে করুন।' })
+      setMessage({ tone: 'ok', text: 'Email changed. Use the new email for your next sign-in.' })
     } catch (err) {
       setMessage({ tone: 'error', text: errorText(err) })
     } finally {
@@ -110,11 +110,11 @@ function EmailSection({ currentEmail, onChanged }: { currentEmail: string; onCha
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <h3 className="text-base font-semibold text-gray-900">ইমেইল বদলান</h3>
-        <p className="text-sm text-gray-500">বর্তমান ইমেইল: {currentEmail || '—'}</p>
+        <h3 className="text-base font-semibold text-gray-900">Change email</h3>
+        <p className="text-sm text-gray-500">Current email: {currentEmail || '—'}</p>
       </div>
 
-      <Field label="নতুন ইমেইল">
+      <Field label="New email">
         <input
           type="email"
           className={inputClass}
@@ -123,7 +123,7 @@ function EmailSection({ currentEmail, onChanged }: { currentEmail: string; onCha
         />
       </Field>
 
-      <Field label="বর্তমান password">
+      <Field label="Current password">
         <input
           type="password"
           className={inputClass}
@@ -136,7 +136,7 @@ function EmailSection({ currentEmail, onChanged }: { currentEmail: string; onCha
 
       <div className="flex justify-end">
         <Button type="submit" disabled={saving}>
-          {saving ? 'সংরক্ষণ হচ্ছে...' : 'ইমেইল বদলান'}
+          {saving ? 'Saving...' : 'Change email'}
         </Button>
       </div>
     </form>
@@ -155,19 +155,19 @@ function PasswordSection() {
     setMessage(null)
 
     if (!currentPassword) {
-      setMessage({ tone: 'error', text: 'বর্তমান password দিন।' })
+      setMessage({ tone: 'error', text: 'Enter your current password.' })
       return
     }
     if (newPassword.length < 8) {
-      setMessage({ tone: 'error', text: 'নতুন password কমপক্ষে ৮ অক্ষরের হতে হবে।' })
+      setMessage({ tone: 'error', text: 'The new password must be at least 8 characters.' })
       return
     }
     if (newPassword !== confirmPassword) {
-      setMessage({ tone: 'error', text: 'দুটো নতুন password মিলছে না।' })
+      setMessage({ tone: 'error', text: 'The two new passwords do not match.' })
       return
     }
     if (newPassword === currentPassword) {
-      setMessage({ tone: 'error', text: 'নতুন password বর্তমানটির থেকে আলাদা হতে হবে।' })
+      setMessage({ tone: 'error', text: 'The new password must be different from the current one.' })
       return
     }
 
@@ -180,7 +180,7 @@ function PasswordSection() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setMessage({ tone: 'ok', text: 'Password বদলানো হয়েছে।' })
+      setMessage({ tone: 'ok', text: 'Password changed.' })
     } catch (err) {
       setMessage({ tone: 'error', text: errorText(err) })
     } finally {
@@ -191,11 +191,11 @@ function PasswordSection() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <h3 className="text-base font-semibold text-gray-900">Password বদলান</h3>
-        <p className="text-sm text-gray-500">নতুন password কমপক্ষে ৮ অক্ষরের হতে হবে।</p>
+        <h3 className="text-base font-semibold text-gray-900">Change password</h3>
+        <p className="text-sm text-gray-500">The new password must be at least 8 characters.</p>
       </div>
 
-      <Field label="বর্তমান password">
+      <Field label="Current password">
         <input
           type="password"
           className={inputClass}
@@ -204,7 +204,7 @@ function PasswordSection() {
         />
       </Field>
 
-      <Field label="নতুন password">
+      <Field label="New password">
         <input
           type="password"
           className={inputClass}
@@ -213,7 +213,7 @@ function PasswordSection() {
         />
       </Field>
 
-      <Field label="নতুন password আবার লিখুন">
+      <Field label="Confirm new password">
         <input
           type="password"
           className={inputClass}
@@ -226,7 +226,7 @@ function PasswordSection() {
 
       <div className="flex justify-end">
         <Button type="submit" disabled={saving}>
-          {saving ? 'সংরক্ষণ হচ্ছে...' : 'Password বদলান'}
+          {saving ? 'Saving...' : 'Change password'}
         </Button>
       </div>
     </form>

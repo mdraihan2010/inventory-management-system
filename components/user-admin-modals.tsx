@@ -50,11 +50,11 @@ export function EditProfileModal({
     const cleanEmail = email.trim().toLowerCase()
 
     if (!cleanName) {
-      setError('নাম লিখুন।')
+      setError('Enter the name.')
       return
     }
     if (!EMAIL_PATTERN.test(cleanEmail)) {
-      setError('ইমেইল সঠিক ফরম্যাটে লিখুন, যেমন name@example.com।')
+      setError('Enter the email in a valid format, for example name@example.com.')
       return
     }
 
@@ -70,22 +70,22 @@ export function EditProfileModal({
     setSaving(true)
     try {
       await apiRequest(`/accounts/${user._id}/profile`, { method: 'PATCH', body })
-      onSaved(`${cleanName}-এর তথ্য হালনাগাদ করা হয়েছে।`)
+      onSaved(`${cleanName}'s details have been updated.`)
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        setError('এই ইমেইল অন্য একজন ব্যবহারকারীর।')
+        setError('This email belongs to another user.')
       } else {
-        setError(err instanceof ApiError ? err.message : 'তথ্য সংরক্ষণ করা যায়নি।')
+        setError(err instanceof ApiError ? err.message : 'Could not save the details.')
       }
       setSaving(false)
     }
   }
 
   return (
-    <ModalShell title="ব্যবহারকারীর তথ্য সম্পাদনা" onClose={onClose}>
+    <ModalShell title="Edit user details" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">নাম *</span>
+          <span className="text-sm font-medium text-gray-700">Name *</span>
           <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
         </label>
 
@@ -103,10 +103,10 @@ export function EditProfileModal({
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
-            বাতিল
+            Cancel
           </button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+            {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </form>
@@ -132,7 +132,7 @@ export function ResetPasswordModal({
     setError('')
 
     if (temporaryPassword.length < 8) {
-      setError('অস্থায়ী password কমপক্ষে ৮ অক্ষরের হতে হবে।')
+      setError('Temporary password must be at least 8 characters.')
       return
     }
 
@@ -142,23 +142,22 @@ export function ResetPasswordModal({
         method: 'POST',
         body: { temporaryPassword },
       })
-      onSaved(`${user.name}-এর অস্থায়ী password সেট করা হয়েছে। পরের login-এ তাঁকে তা বদলাতে হবে।`)
+      onSaved(`A temporary password has been set for ${user.name}. They must change it at next sign-in.`)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Password রিসেট করা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not reset the password.')
       setSaving(false)
     }
   }
 
   return (
-    <ModalShell title="পাসওয়ার্ড রিসেট" onClose={onClose}>
+    <ModalShell title="Reset password" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-gray-600">
-          <strong>{user.name}</strong> ({user.email})-এর জন্য একটি অস্থায়ী password দিন। তিনি পরের login-এ
-          নিজের password বদলাবেন।
+          Set a temporary password for <strong>{user.name}</strong> ({user.email}). They will be asked to change it at their next sign-in.
         </p>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">অস্থায়ী password *</span>
+          <span className="text-sm font-medium text-gray-700">Temporary password *</span>
           <input
             type="text"
             className={inputClass}
@@ -171,10 +170,10 @@ export function ResetPasswordModal({
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
-            বাতিল
+            Cancel
           </button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'সংরক্ষণ হচ্ছে...' : 'অস্থায়ী password সেট করুন'}
+            {saving ? 'Saving...' : 'Set temporary password'}
           </Button>
         </div>
       </form>
