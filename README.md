@@ -1,47 +1,54 @@
-﻿# StockPilot: ইনভেন্টরি ও বিক্রি ব্যবস্থাপনা
+﻿# StockPilot: Inventory and Sales Management
 
-একটি ইনভেন্টরি, বিক্রি ও ক্রয় ব্যবস্থাপনা সিস্টেম। এতে পণ্য, স্টক, বিক্রি, পরিশোধ, বাকি, ক্রয়, রিপোর্ট এবং ব্যবহারকারীর ভূমিকা ভিত্তিক অনুমতি আছে।
+An inventory, sales and purchase management system. It covers products, stock, sales, payments, customer dues, purchases, reports, and role-based access for users.
 
-## প্রযুক্তি
+## Tech stack
 
 - **Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS
 - **Backend:** Node.js, Express 5, Mongoose 9, JWT, bcryptjs
 - **Database:** MongoDB Atlas
-- **Deploy:** Frontend Vercel, Backend Render
+- **Deploy:** Frontend on Vercel, backend on Render
 
-## মূল সুবিধা
+## Main features
 
-- পণ্য, ক্যাটাগরি ও ব্র্যান্ড ব্যবস্থাপনা
-- স্টক, স্টক ইতিহাস ও কম স্টকের সতর্কতা
-- ক্রয়: খসড়া, সম্পন্ন (স্টক বাড়ে) ও বাতিল
-- বিক্রি: খসড়া, সম্পন্ন (স্টক কমে, ক্রয়মূল্য সংরক্ষিত হয়) ও বাতিল
-- পরিশোধ (আংশিক বা সম্পূর্ণ) ও বাকির হিসাব
-- গ্রাহক ও সরবরাহকারী ব্যবস্থাপনা
-- রিপোর্ট: বিক্রি, ক্রয়, লাভ ও স্টক মূল্য
-- ব্যবহারকারী ও ভূমিকা: Administrator, Manager, Staff
-- Audit log: গুরুত্বপূর্ণ পরিবর্তনের রেকর্ড
+- Products, categories and brands
+- Bulk product import from a CSV file (with a preview before saving)
+- Stock, stock history and low-stock alerts
+- Purchases: draft, complete (stock increases) and cancel
+- Sales: draft, complete (stock decreases and purchase cost is saved) and cancel
+- Payments (partial or full) and customer dues
+- Customer and supplier management
+- Returns: customer returns (balance adjustment and cash refund) and returns to suppliers
+- Reports: sales, purchases, profit and stock value, with a date range
+- Users and roles: Administrator, Manager and Staff
+- Users can change their own email and password
+- Administrators can edit users, and set a temporary password for a user who forgot theirs
+- Audit log of important changes
+- Light and dark mode
 
-## ভূমিকা ও অনুমতি
+## Roles and permissions
 
-| কাজ | Administrator | Manager | Staff |
+| Task | Administrator | Manager | Staff |
 |---|---|---|---|
-| পণ্য, ক্যাটাগরি, ব্র্যান্ড, স্টক ও গ্রাহক দেখা | ✅ | ✅ | ✅ |
-| পণ্য যোগ ও সম্পাদনা | ✅ | ✅ | ❌ |
-| ক্যাটাগরি ও ব্র্যান্ড যোগ ও সম্পাদনা | ✅ | ✅ | ❌ |
-| স্টক সমন্বয় | ✅ | ✅ | ❌ |
-| বিক্রি তৈরি, সম্পন্ন, পরিশোধ নেওয়া | ✅ | ✅ | ✅ |
-| বিক্রি বাতিল | ✅ | ✅ | ❌ |
-| ক্রয় দেখা, তৈরি, সম্পন্ন, বাতিল | ✅ | ✅ | ❌ |
-| গ্রাহক যোগ | ✅ | ✅ | ✅ |
-| গ্রাহক সম্পাদনা ও চালু/বন্ধ | ✅ | ✅ | ❌ |
-| সরবরাহকারী যোগ ও সম্পাদনা | ✅ | ✅ | ❌ |
-| ফেরত (গ্রাহক ও সরবরাহকারী) | ✅ | ✅ | ❌ |
-| রিপোর্ট ও পরিশোধের তালিকা | ✅ | ✅ | ❌ |
-| ব্যবহারকারী ব্যবস্থাপনা ও Audit log | ✅ | ❌ | ❌ |
+| View products, categories, brands, stock and customers | ✅ | ✅ | ✅ |
+| Add and edit products | ✅ | ✅ | ❌ |
+| Add and edit categories and brands | ✅ | ✅ | ❌ |
+| Adjust stock | ✅ | ✅ | ❌ |
+| Create, complete and collect payment for sales | ✅ | ✅ | ✅ |
+| Cancel sales | ✅ | ✅ | ❌ |
+| View, create, complete and cancel purchases | ✅ | ✅ | ❌ |
+| Add customers | ✅ | ✅ | ✅ |
+| Edit customers and activate or deactivate them | ✅ | ✅ | ❌ |
+| Add and edit suppliers | ✅ | ✅ | ❌ |
+| Customer returns and returns to suppliers | ✅ | ✅ | ❌ |
+| Reports and the payment and dues list | ✅ | ✅ | ❌ |
+| User management and audit log | ✅ | ❌ | ❌ |
 
-## Local-এ চালানো
+Every user can change their own email and password from the gear icon at the bottom of the sidebar.
 
-প্রয়োজন: Node.js ও pnpm।
+## Run locally
+
+Requirements: Node.js and pnpm.
 
 **1. Frontend**
 
@@ -51,7 +58,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-এরপর `http://localhost:3000` খুলুন।
+Then open `http://localhost:3000`.
 
 **2. Backend**
 
@@ -62,44 +69,67 @@ cp .env.example .env
 pnpm dev
 ```
 
-`.env`-এ `MONGO_URI` ও `JWT_SECRET` নিজের মান দিয়ে বদলান। Backend চালু হলে `http://localhost:5000/api/v1/health` খুললে একটি বার্তা আসবে।
+Set `MONGO_URI` and `JWT_SECRET` in `.env` to your own values. When the backend is running, opening `http://localhost:5000/api/v1/health` shows a message.
 
-## প্রথম Administrator তৈরি
+## Create the first Administrator
 
-`server` ফোল্ডারে থেকে:
+From the `server` folder:
 
 ```bash
-node src/scripts/createAdmin.js "আপনার নাম" admin@example.com "শক্তিশালী-password"
+node src/scripts/createAdmin.js "Your name" admin@example.com "a-strong-password"
 ```
 
-Password কমপক্ষে ৮ অক্ষরের হতে হবে। এই কমান্ড শুধু একবার চালান।
+The password must be at least 8 characters. Run this command only once.
+
+## Import products from a CSV file
+
+From the `server` folder. The first run only checks the file and shows a preview. Nothing is saved.
+
+```bash
+node src/scripts/importProducts.js "C:\path\to\products.csv" "admin@example.com"
+```
+
+When the preview is correct, add `--apply` to save the products:
+
+```bash
+node src/scripts/importProducts.js "C:\path\to\products.csv" "admin@example.com" --apply
+```
+
+The first row of the CSV must be the header:
+
+```csv
+name,sku,category,brand,purchase_price,selling_price,min_stock_level,opening_stock,unit
+```
+
+`category` and `brand` must match existing names exactly. Each `sku` must be unique. `opening_stock` is recorded in the stock history as the opening stock.
 
 ## Deploy
 
-- **Frontend (Vercel):** Environment variable `NEXT_PUBLIC_API_BASE_URL` যোগ করুন, তারপর Redeploy করুন।
-- **Backend (Render):** Root Directory `server`, Build Command `pnpm install`, Start Command `pnpm start`। Environment variables: `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLIENT_URL` (Vercel-এর ঠিকানা)।
+- **Frontend (Vercel):** Add the environment variable `NEXT_PUBLIC_API_BASE_URL`, then redeploy.
+- **Backend (Render):** Root Directory `server`, Build Command `pnpm install`, Start Command `pnpm start`. Environment variables: `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, and `CLIENT_URL` (the Vercel address).
 
-Render-এর বিনামূল্যের সার্ভার কিছুক্ষণ ব্যবহার না হলে ঘুমিয়ে যায়। প্রথম request-এ ২-৩ মিনিট লাগতে পারে।
+The free Render server sleeps when it is not used. The first request can take 2 to 3 minutes.
 
-## জানা সীমাবদ্ধতা
+## Known limitations
 
-- সরবরাহকারীকে টাকা পরিশোধের অংশ এখনো নেই।
-- Administrator অন্য ব্যবহারকারীর password রিসেট করতে পারে না।
-- খুচরা বিক্রিতে বাকি রাখলে গ্রাহক সংরক্ষিত থাকে না।
-- তারিখভিত্তিক রিপোর্ট UTC অনুযায়ী হিসাব হয়। বাংলাদেশের সকাল ৬টার আগের বিক্রি তাই আগের দিনে যেতে পারে।
-- প্রতিটি browser tab-এ আলাদা login লাগে (token `sessionStorage`-এ থাকে)।
+- A saved return cannot be cancelled.
+- Cash refunds do not appear in the payment list. They are shown on the Returns page and in the reports.
+- Payments to suppliers are not tracked yet.
+- Walk-in sales cannot be linked to a person, so their dues cannot be tracked to an individual.
+- Reports use UTC dates. Sales made before 6 AM Bangladesh time may appear on the previous day.
+- Sign-in is stored per browser tab (`sessionStorage`), so each tab needs its own sign-in.
 
-## প্রজেক্টের কাঠামো
+## Project structure
 
-app/ Next.js পাতা ও layout
-components/ প্রতিটি মডিউলের পাতা (products, sales, customers ইত্যাদি)
-lib/ API client (api.ts)
+app/ Next.js pages and layout
+components/ One module per screen (products, sales, customers, ...)
+lib/ API client (api.ts) and money formatting (money.ts)
 server/src/
-config/ MongoDB সংযোগ
-controllers/ ব্যবসার যুক্তি
-middleware/ login ও ভূমিকা যাচাই
-models/ Mongoose schema
-routes/ API পথ
-scripts/ প্রথম admin তৈরি
-utils/ audit log
+config/ MongoDB connection
+controllers/ Business logic
+middleware/ Sign-in and role checks
+models/ Mongoose schemas
+routes/ API paths
+scripts/ First Administrator and CSV product import
+utils/ Audit log
 
