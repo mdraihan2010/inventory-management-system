@@ -1,8 +1,9 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CircleDollarSign, Receipt, WalletCards } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
+import { formatMoney } from '@/lib/money'
 
 type Tab = 'payments' | 'dues'
 
@@ -61,25 +62,20 @@ type Totals = {
 }
 
 const METHOD_LABEL: Record<PaymentMethod, string> = {
-  CASH: 'নগদ',
-  MOBILE_BANKING: 'মোবাইল ব্যাংকিং',
-  CARD: 'কার্ড',
-  BANK_TRANSFER: 'ব্যাংক ট্রান্সফার',
+  CASH: 'Cash',
+  MOBILE_BANKING: 'Mobile banking',
+  CARD: 'Card',
+  BANK_TRANSFER: 'Bank transfer',
 }
 
-const numberFormat = new Intl.NumberFormat('en-IN')
-
-function taka(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '—'
-  return `৳ ${numberFormat.format(value)}`
-}
+const numberFormat = new Intl.NumberFormat('en-US')
 
 function formatDate(value?: string): string {
   return value ? new Date(value).toLocaleDateString('en-GB') : '—'
 }
 
 function errorText(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'তথ্য আনা যায়নি।'
+  return err instanceof ApiError ? err.message : 'Could not load the information.'
 }
 
 const buttonClass = 'rounded-md border px-3 py-1.5 text-sm'
@@ -91,11 +87,11 @@ export function PaymentsPage({ canManage }: { canManage: boolean }) {
         <div className="page-heading">
           <div>
             <p className="eyebrow">Workspace / Payments &amp; Dues</p>
-            <h1>পরিশোধ ও বাকি</h1>
+            <h1>Payments &amp; Dues</h1>
           </div>
         </div>
         <section className="panel table-panel">
-          <p className="p-6 text-sm text-gray-600">পরিশোধ ও বাকির হিসাব শুধু Manager ও Administrator দেখতে পারবেন।</p>
+          <p className="p-6 text-sm text-gray-600">Only Managers and Administrators can view payments and dues.</p>
         </section>
       </>
     )
@@ -164,7 +160,7 @@ function PaymentsManager() {
     if (tab === 'dues') loadDues()
   }, [tab, loadDues])
 
-  // গ্রাহক অনুযায়ী বাকি। গ্রাহক না থাকলে খুচরা বিক্রি হিসেবে আলাদা করা হয়
+  // Group the dues by customer. Walk-in sales are shown separately
   const dueGroups = useMemo<DueGroup[]>(() => {
     const groups = new Map<string, DueGroup>()
 
@@ -181,7 +177,7 @@ function PaymentsManager() {
       } else {
         groups.set(key, {
           key,
-          name: sale.customer?.name ?? 'খুচরা গ্রাহক',
+          name: sale.customer?.name ?? 'Walk-in customer',
           phone: sale.customer?.phone ?? '',
           count: 1,
           outstanding: sale.outstandingAmount,
@@ -200,8 +196,8 @@ function PaymentsManager() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Workspace / Payments &amp; Dues</p>
-          <h1>পরিশোধ ও বাকি</h1>
-          <p className="subheading">গ্রাহকের পরিশোধের ইতিহাস ও কার কাছে কত বাকি আছে।</p>
+          <h1>Payments &amp; Dues</h1>
+          <p className="subheading">Payment history and who still owes money.</p>
         </div>
       </div>
 
@@ -209,25 +205,25 @@ function PaymentsManager() {
         <article className="summary-card">
           <div className="metric-icon green"><CircleDollarSign /></div>
           <div className="metric-info">
-            <span>মোট পরিশোধ</span>
-            <strong>{taka(totals.totalPaid)}</strong>
-            <small>সব সময়ের সম্পন্ন বিক্রি থেকে</small>
+            <span>Total paid</span>
+            <strong>{formatMoney(totals.totalPaid)}</strong>
+            <small>From all completed sales, all time</small>
           </div>
         </article>
         <article className="summary-card">
           <div className="metric-icon orange"><WalletCards /></div>
           <div className="metric-info">
-            <span>বর্তমান বাকি</span>
-            <strong>{taka(totals.totalOutstanding)}</strong>
-            <small>গ্রাহকদের কাছে পাওনা</small>
+            <span>Outstanding balance</span>
+            <strong>{formatMoney(totals.totalOutstanding)}</strong>
+            <small>Amount owed by customers</small>
           </div>
         </article>
         <article className="summary-card">
           <div className="metric-icon blue"><Receipt /></div>
           <div className="metric-info">
-            <span>পরিশোধের সংখ্যা</span>
+            <span>Number of payments</span>
             <strong>{totals.paymentCount === null ? '—' : numberFormat.format(totals.paymentCount)}</strong>
-            <small>মোট পরিশোধের রেকর্ড</small>
+            <small>Total payment records</small>
           </div>
         </article>
       </section>
@@ -239,16 +235,16 @@ function PaymentsManager() {
               onClick={() => setTab('payments')}
               className={`${buttonClass} ${tab === 'payments' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
             >
-              পরিশোধের তালিকা
+              Payment list
             </button>
             <button
               onClick={() => setTab('dues')}
               className={`${buttonClass} ${tab === 'dues' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
             >
-              বাকির তালিকা
+              Dues list
             </button>
           </div>
-          {loading && <span className="text-sm text-gray-500">লোড হচ্ছে...</span>}
+          {loading && <span className="text-sm text-gray-500">Loading...</span>}
         </div>
 
         {error && <p className="px-4 pb-3 text-sm text-red-600">{error}</p>}
@@ -259,22 +255,22 @@ function PaymentsManager() {
               <table>
                 <thead>
                   <tr>
-                    <th>তারিখ</th>
-                    <th>বিক্রি নম্বর</th>
-                    <th>গ্রাহক</th>
-                    <th>পরিমাণ</th>
-                    <th>পদ্ধতি</th>
+                    <th>Date</th>
+                    <th>Sale no.</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Method</th>
                     <th>Reference</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {!loading && payments.length === 0 && <tr><td colSpan={6}>কোনো পরিশোধ পাওয়া যায়নি।</td></tr>}
+                  {!loading && payments.length === 0 && <tr><td colSpan={6}>No payments found.</td></tr>}
                   {payments.map((payment) => (
                     <tr key={payment._id}>
                       <td>{formatDate(payment.createdAt)}</td>
                       <td><strong className="ref-code">{payment.sale?.saleNumber ?? '—'}</strong></td>
-                      <td>{payment.customer?.name ?? 'খুচরা গ্রাহক'}</td>
-                      <td><strong>{taka(payment.amount)}</strong></td>
+                      <td>{payment.customer?.name ?? 'Walk-in customer'}</td>
+                      <td><strong>{formatMoney(payment.amount)}</strong></td>
                       <td>{METHOD_LABEL[payment.method] ?? payment.method}</td>
                       <td>{payment.reference || '—'}</td>
                     </tr>
@@ -284,13 +280,13 @@ function PaymentsManager() {
             </div>
 
             <div className="flex items-center justify-between px-4 py-3 text-sm">
-              <span>পৃষ্ঠা {page} / {totalPages}</span>
+              <span>Page {page} / {totalPages}</span>
               <div className="flex gap-2">
                 <button className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>
-                  আগের
+                  Previous
                 </button>
                 <button className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40" disabled={page >= totalPages || loading} onClick={() => setPage((current) => current + 1)}>
-                  পরের
+                  Next
                 </button>
               </div>
             </div>
@@ -301,7 +297,7 @@ function PaymentsManager() {
           <>
             {salesTruncated && (
               <p className="px-4 pb-3 text-xs text-amber-700">
-                সর্বশেষ ১০০টি সম্পন্ন বিক্রির ভিত্তিতে এই তালিকা তৈরি হয়েছে।
+                This list is based on the latest 100 completed sales.
               </p>
             )}
 
@@ -309,21 +305,21 @@ function PaymentsManager() {
               <table>
                 <thead>
                   <tr>
-                    <th>গ্রাহক</th>
-                    <th>ফোন</th>
-                    <th>বাকি বিক্রি</th>
-                    <th>মোট বাকি</th>
-                    <th>প্রথম বাকির তারিখ</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Unpaid sales</th>
+                    <th>Total outstanding</th>
+                    <th>Oldest unpaid date</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {!loading && dueGroups.length === 0 && <tr><td colSpan={5}>কোনো বাকি নেই। সব বিক্রি পরিশোধিত।</td></tr>}
+                  {!loading && dueGroups.length === 0 && <tr><td colSpan={5}>No outstanding balances. All sales are paid.</td></tr>}
                   {dueGroups.map((group) => (
                     <tr key={group.key}>
                       <td><strong>{group.name}</strong></td>
                       <td>{group.phone || '—'}</td>
-                      <td>{group.count} টি</td>
-                      <td><strong className="text-red-600">{taka(group.outstanding)}</strong></td>
+                      <td>{group.count}</td>
+                      <td><strong className="text-red-600">{formatMoney(group.outstanding)}</strong></td>
                       <td>{formatDate(group.oldest)}</td>
                     </tr>
                   ))}
@@ -334,12 +330,12 @@ function PaymentsManager() {
             {dueGroups.length > 0 && (
               <div className="space-y-2 px-4 py-3 text-sm">
                 <div className="flex justify-between font-semibold">
-                  <span>মোট বাকি</span>
-                  <span>{taka(dueTotal)}</span>
+                  <span>Total outstanding</span>
+                  <span>{formatMoney(dueTotal)}</span>
                 </div>
                 <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
-                  খুচরা গ্রাহকের বাকির জন্য গ্রাহক বেছে নেওয়া হয়নি, তাই কার কাছে পাওনা তা জানা যায় না।
-                  ভবিষ্যতে বাকিতে বিক্রি করলে গ্রাহক বেছে নেওয়া ভালো।
+                  No customer was selected for walk-in sales, so it is not known who owes this amount.
+                  For future credit sales, select a customer.
                 </p>
               </div>
             )}
