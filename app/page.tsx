@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useState } from 'react'
 import {
@@ -95,9 +95,9 @@ type DashboardData = {
 }
 
 const SALE_STATUS_LABEL: Record<SaleStatus, string> = {
-  DRAFT: 'খসড়া',
-  COMPLETED: 'সম্পন্ন',
-  CANCELLED: 'বাতিল',
+  DRAFT: 'Draft',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
 }
 
 const SALE_STATUS_CLASS: Record<SaleStatus, string> = {
@@ -127,7 +127,7 @@ function monthStartText(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`
 }
 
-// সব তথ্য একসাথে আনা হয়। একটা ব্যর্থ হলেও বাকিগুলো দেখানো হয়, যেমন Staff-এর রিপোর্ট নেই
+// Load all dashboard data together. If one request fails, the others still show
 async function loadDashboard(): Promise<DashboardData> {
   const todayDate = todayText()
   const monthStart = monthStartText()
@@ -243,8 +243,8 @@ function App() {
         </nav>
         <div className="sidebar-footer">
           <div className="avatar">{initials}</div>
-          <div><strong>{userName || 'লোড হচ্ছে...'}</strong><span>{roleLabel}</span></div>
-          <button className="icon-button" onClick={() => setAccountOpen(true)} aria-label="আমার অ্যাকাউন্ট"><Settings /></button>
+          <div><strong>{userName || 'Loading...'}</strong><span>{roleLabel}</span></div>
+          <button className="icon-button" onClick={() => setAccountOpen(true)} aria-label="My account" title="My account"><Settings /></button>
           <button className="icon-button" onClick={handleLogout} aria-label="Logout"><LogOut /></button>
         </div>
       </aside>
@@ -279,7 +279,7 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
     setUpdatedAt(new Date())
     setLoading(false)
 
-    // কোনো request-এ token অবৈধ পাওয়া গেলে apiRequest তা মুছে দেয়। তখন login পর্দায় ফেরত যাওয়া দরকার
+    // If a request reports an invalid token, apiRequest clears it. Then send the user back to login
     if (!getToken()) {
       window.location.reload()
     }
@@ -307,30 +307,30 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
 
   const cards = [
     {
-      label: 'মোট পণ্য',
+      label: 'Total products',
       value: totalProducts === null ? (loading ? '...' : '—') : numberFormat.format(totalProducts),
-      note: 'ক্যাটালগে সব পণ্য',
+      note: 'All products in the catalog',
       icon: Package,
       tone: 'blue',
     },
     {
-      label: 'আজকের বিক্রি',
+      label: "Today's sales",
       value: taka(data?.today?.totalSales),
-      note: data?.today ? `${data.today.count} টি সম্পন্ন বিক্রি` : 'তথ্য পাওয়া যায়নি',
+      note: data?.today ? `${data.today.count} completed sales` : 'No data available',
       icon: ShoppingCart,
       tone: 'green',
     },
     {
-      label: 'এই মাসের বিক্রি',
+      label: 'This month\u2019s sales',
       value: taka(data?.month?.totalSales),
-      note: data?.month ? `${data.month.count} টি সম্পন্ন বিক্রি` : 'তথ্য পাওয়া যায়নি',
+      note: data?.month ? `${data.month.count} completed sales` : 'No data available',
       icon: CircleDollarSign,
       tone: 'purple',
     },
     {
-      label: 'মোট বাকি',
+      label: 'Total outstanding',
       value: taka(data?.allTime?.totalOutstanding),
-      note: 'গ্রাহকদের কাছে পাওনা',
+      note: 'Amount receivable from customers',
       icon: WalletCards,
       tone: 'orange',
     },
@@ -341,13 +341,23 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
       <div className="page-heading">
         <div>
           <p className="eyebrow">{todayLabel}</p>
-          <h1>স্বাগতম, {userName || 'ব্যবহারকারী'}</h1>
-          <p className="subheading">আপনার ইনভেন্টরি ও বিক্রির সর্বশেষ অবস্থা।</p>
+          <h1>Welcome, {userName || 'user'}</h1>
+          <p className="subheading">Here is the latest status of your inventory and sales.</p>
         </div>
         <div className="toolbar-actions">
-          <span className="text-xs text-gray-500">{updatedAt ? `সর্বশেষ হালনাগাদ: ${updatedAt.toLocaleTimeString('en-GB')}` : 'এখনো হালনাগাদ হয়নি'}</span>
-          <button type="button" onClick={refresh} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />{loading ? 'হালনাগাদ হচ্ছে...' : 'রিফ্রেশ'}</button>
-          <button className="primary-button" onClick={() => onNavigate('Products')}><Plus /> নতুন পণ্য</button>
+          <span className="text-xs text-gray-500">
+            {updatedAt ? `Last updated: ${updatedAt.toLocaleTimeString('en-GB')}` : 'Not updated yet'}
+          </span>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button className="primary-button" onClick={() => onNavigate('Products')}><Plus /> New product</button>
         </div>
       </div>
 
@@ -367,18 +377,18 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
       <section className="dashboard-grid">
         <article className="panel sales-panel">
           <div className="panel-heading">
-            <div><h2>সাম্প্রতিক বিক্রি</h2><p>সর্বশেষ ৫টি বিক্রি</p></div>
-            <button className="more-button" onClick={() => onNavigate('Sales')}>সব দেখুন <span>→</span></button>
+            <div><h2>Recent sales</h2><p>Latest 5 sales</p></div>
+            <button className="more-button" onClick={() => onNavigate('Sales')}>View all <span>→</span></button>
           </div>
           {data?.recentSales ? (
             <div className="table-scroll">
               <table>
-                <thead><tr><th>বিক্রি নম্বর</th><th>গ্রাহক</th><th>তারিখ</th><th>মোট</th><th>অবস্থা</th></tr></thead>
+                <thead><tr><th>Sale no.</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
                 <tbody>
                   {data.recentSales.map((sale) => (
                     <tr key={sale._id}>
                       <td><strong className="ref-code">{sale.saleNumber}</strong></td>
-                      <td>{sale.customer?.name ?? 'খুচরা গ্রাহক'}</td>
+                      <td>{sale.customer?.name ?? 'Walk-in customer'}</td>
                       <td>{new Date(sale.saleDate).toLocaleDateString('en-GB')}</td>
                       <td>{taka(sale.grandTotal)}</td>
                       <td><span className={`status ${SALE_STATUS_CLASS[sale.status]}`}>{SALE_STATUS_LABEL[sale.status]}</span></td>
@@ -388,39 +398,39 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
               </table>
             </div>
           ) : (
-            <p className="subheading">{loading ? 'তথ্য লোড হচ্ছে...' : 'বিক্রির তথ্য পাওয়া যায়নি'}</p>
+            <p className="subheading">{loading ? 'Loading...' : 'No sales data available'}</p>
           )}
         </article>
 
         <article className="panel stock-panel">
           <div className="panel-heading">
-            <div><h2>স্টক অবস্থা</h2><p>বর্তমান ইনভেন্টরির স্বাস্থ্য</p></div>
-            <button className="more-button" onClick={() => onNavigate('Inventory')}>বিস্তারিত <span>→</span></button>
+            <div><h2>Stock status</h2><p>Current inventory health</p></div>
+            <button className="more-button" onClick={() => onNavigate('Inventory')}>Details <span>→</span></button>
           </div>
           <div className="donut-row">
-            <div className="donut"><div><strong>{totalProducts ?? '—'}</strong><span>মোট পণ্য</span></div></div>
+            <div className="donut"><div><strong>{totalProducts ?? '—'}</strong><span>Total products</span></div></div>
             <div className="stock-legend">
-              <span><i className="dot green" /> স্বাভাবিক <b>{healthyCount ?? '—'}</b></span>
-              <span><i className="dot orange" /> কম স্টক <b>{lowCount ?? '—'}</b></span>
-              <span><i className="dot red" /> স্টক শেষ <b>{outCount ?? '—'}</b></span>
+              <span><i className="dot green" /> Healthy <b>{healthyCount ?? '—'}</b></span>
+              <span><i className="dot orange" /> Low stock <b>{lowCount ?? '—'}</b></span>
+              <span><i className="dot red" /> Out of stock <b>{outCount ?? '—'}</b></span>
             </div>
           </div>
           <div className="stock-alert">
-            <div><Boxes /><span><strong>{(lowCount ?? 0) + (outCount ?? 0)} টি পণ্য</strong> মনোযোগ দরকার</span></div>
-            <button onClick={() => onNavigate('Inventory')}>দেখুন</button>
+            <div><Boxes /><span><strong>{(lowCount ?? 0) + (outCount ?? 0)} products</strong> need attention</span></div>
+            <button onClick={() => onNavigate('Inventory')}>View</button>
           </div>
         </article>
       </section>
 
       <section className="panel recent-panel">
         <div className="panel-heading">
-          <div><h2>কম স্টক ও শেষ হওয়া পণ্য</h2><p>যেসব পণ্যের পুনরায় ক্রয় প্রয়োজন</p></div>
+          <div><h2>Low stock and out-of-stock products</h2><p>Products that need to be restocked</p></div>
         </div>
         {data?.alerts ? (
           alertRows.length > 0 ? (
             <div className="table-scroll">
               <table>
-                <thead><tr><th>পণ্য</th><th>SKU</th><th>বর্তমান স্টক</th><th>সর্বনিম্ন</th><th>অবস্থা</th></tr></thead>
+                <thead><tr><th>Product</th><th>SKU</th><th>Current stock</th><th>Minimum</th><th>Status</th></tr></thead>
                 <tbody>
                   {alertRows.map(({ product, out }) => (
                     <tr key={product._id}>
@@ -428,17 +438,17 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
                       <td>{product.sku}</td>
                       <td><strong className={out ? 'stock-low' : ''}>{product.currentStock}</strong></td>
                       <td>{product.minStockLevel}</td>
-                      <td><span className={`status ${out ? 'out-of-stock' : 'low-stock'}`}>{out ? 'শেষ' : 'কম স্টক'}</span></td>
+                      <td><span className={`status ${out ? 'out-of-stock' : 'low-stock'}`}>{out ? 'Out of stock' : 'Low stock'}</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <p className="subheading">এখন কোনো সতর্কতা নেই। সব পণ্যের স্টক ঠিক আছে।</p>
+            <p className="subheading">No alerts right now. All products are in stock.</p>
           )
         ) : (
-          <p className="subheading">{loading ? 'তথ্য লোড হচ্ছে...' : 'সতর্কতার তথ্য পাওয়া যায়নি'}</p>
+          <p className="subheading">{loading ? 'Loading...' : 'Alert data is not available'}</p>
         )}
       </section>
     </>
