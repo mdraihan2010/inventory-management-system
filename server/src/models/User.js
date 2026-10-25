@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 export const ROLES = ["ADMINISTRATOR", "MANAGER", "STAFF"];
 
@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: ROLES, default: "STAFF" },
     isActive: { type: Boolean, default: true },
-    // নতুন user প্রথমবার login করে নিজের password বদলাতে বাধ্য হবে
+    // A new user must change their password when they first sign in
     mustChangePassword: { type: Boolean, default: false },
   },
   { timestamps: true }

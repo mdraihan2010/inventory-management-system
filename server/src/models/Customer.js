@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const customerSchema = new mongoose.Schema(
   {
@@ -9,7 +9,7 @@ const customerSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
       maxlength: 100,
-      // খালি email যেন unique নিয়মে আটকে না যায়
+      // So that an empty email does not fail the unique rule
       set: (value) => (typeof value === "string" && value.trim() ? value.trim().toLowerCase() : undefined),
     },
     address: { type: String, trim: true, maxlength: 300, default: "" },

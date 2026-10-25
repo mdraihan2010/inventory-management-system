@@ -1,6 +1,6 @@
-﻿import AuditLog from "../models/AuditLog.js";
+import AuditLog from "../models/AuditLog.js";
 
-// একটা পরিবর্তনের রেকর্ড রাখে। রেকর্ড রাখতে না পারলে শুধু সতর্কবার্তা দেয়, মূল কাজ থামায় না
+// Records one change. If the record cannot be saved, it only logs a warning and does not stop the main action
 export async function logAudit({ userId, action, entityType, entityId, summary = "" }) {
   try {
     await AuditLog.create({

@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const saleItemSchema = new mongoose.Schema(
   {
@@ -8,7 +8,7 @@ const saleItemSchema = new mongoose.Schema(
     quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
     lineTotal: { type: Number, required: true, min: 0 },
-    // বিক্রি সম্পন্ন হওয়ার সময়ের ক্রয়মূল্য। লাভ হিসাবের জন্য এটা লাগবে
+    // Purchase cost at the time the sale was completed. Needed for the profit calculation
     costPrice: { type: Number, default: null, min: 0 },
   },
   { _id: false }
@@ -27,7 +27,7 @@ const saleSchema = new mongoose.Schema(
     grandTotal: { type: Number, required: true, min: 0 },
     paidAmount: { type: Number, default: 0, min: 0 },
     outstandingAmount: { type: Number, default: 0, min: 0 },
-    // ফেরত দেওয়া পণ্যের মোট মূল্য। grandTotal বদলায় না, তাই আসল বিক্রির হিসাব থেকে যায়
+    // Total value of returned products. grandTotal does not change, so the original sale stays in the records
     returnedAmount: { type: Number, default: 0, min: 0 },
     paymentStatus: { type: String, enum: ["PAID", "PARTIALLY_PAID", "UNPAID"], default: "UNPAID" },
     status: { type: String, enum: ["DRAFT", "COMPLETED", "CANCELLED"], default: "DRAFT" },

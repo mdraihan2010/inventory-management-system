@@ -1,9 +1,9 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const purchaseItemSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-    // কেনার সময়ের নাম ও SKU রাখা হচ্ছে, পরে পণ্যের নাম বদলালেও পুরনো রেকর্ড ঠিক থাকবে
+    // The name and SKU at the time of purchase are stored, so old records stay correct if the product is renamed later
     productName: { type: String, required: true },
     sku: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
@@ -26,7 +26,7 @@ const purchaseSchema = new mongoose.Schema(
     discount: { type: Number, default: 0, min: 0 },
     grandTotal: { type: Number, required: true, min: 0 },
     paidAmount: { type: Number, default: 0, min: 0 },
-    // সরবরাহকারীকে ফেরত দেওয়া পণ্যের মোট মূল্য। grandTotal বদলায় না
+    // Total value of products returned to the supplier. grandTotal does not change
     returnedAmount: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: ["DRAFT", "COMPLETED", "CANCELLED"], default: "DRAFT" },
     notes: { type: String, trim: true, maxlength: 500, default: "" },

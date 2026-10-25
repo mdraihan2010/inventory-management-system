@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
   {
@@ -8,7 +8,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: null,
-      // খালি barcode কে null হিসেবে রাখা হয়, যাতে একাধিক product-এ খালি থাকলেও সমস্যা না হয়
+      // An empty barcode is stored as null, so several products can have no barcode without a conflict
       set: (value) => (typeof value === "string" && value.trim() ? value.trim() : null),
     },
     description: { type: String, trim: true, maxlength: 1000, default: "" },
@@ -24,7 +24,7 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Barcode unique থাকবে, কিন্তু null বা খালি মান এই নিয়মে ধরা হবে না
+// Barcode must be unique, but null or empty values are not checked by this rule
 productSchema.index(
   { barcode: 1 },
   { unique: true, partialFilterExpression: { barcode: { $type: "string" } } }

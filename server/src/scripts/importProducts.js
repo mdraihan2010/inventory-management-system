@@ -13,11 +13,11 @@ const apply = args.includes("--apply");
 const [csvPath, adminEmailArg] = args.filter((arg) => !arg.startsWith("--"));
 
 if (!csvPath || !adminEmailArg) {
-  console.log('ব্যবহার: node src/scripts/importProducts.js "<csv ফাইলের পথ>" "<admin email>" [--apply]');
+  console.log('Usage: node src/scripts/importProducts.js "<csv file path>" "<admin email>" [--apply]');
   process.exit(1);
 }
 
-// CSV পড়ার সাধারণ ফাংশন। ডাবল কোটেশনের ভেতরের কমা ঠিকভাবে ধরে
+// A simple CSV reader. It correctly keeps commas that are inside double quotes
 function parseCsv(text) {
   const rows = [];
   let row = [];
@@ -70,7 +70,7 @@ await mongoose.connect(process.env.MONGO_URI);
 
 const admin = await User.findOne({ email: adminEmailArg.toLowerCase().trim(), isActive: true });
 if (!admin || !["ADMINISTRATOR", "MANAGER"].includes(admin.role)) {
-  console.log("এই email দিয়ে সক্রিয় Administrator বা Manager পাওয়া যায়নি।");
+  console.log("No active Administrator or Manager was found with this email.");
   await mongoose.disconnect();
   process.exit(1);
 }
@@ -89,7 +89,7 @@ const text = fs.readFileSync(csvPath, "utf8").replace(/^\uFEFF/, "");
 const table = parseCsv(text);
 
 if (table.length < 2) {
-  console.log("CSV ফাইলে কোনো পণ্যের সারি নেই। প্রথম সারি শিরোনাম, তারপর পণ্য।");
+  console.log("The CSV file has no product rows. The first row must be the header, followed by the products.");
   await mongoose.disconnect();
   process.exit(1);
 }
@@ -114,63 +114,63 @@ for (const { row, data } of records) {
   const sku = (data.sku || "").toUpperCase();
   const barcode = data.barcode || null;
 
-  if (!name) problems.push("name খালি");
-  if (name.length > 150) problems.push("name ১৫০ অক্ষরের বেশি");
+  if (!name) problems.push("name is empty");
+  if (name.length > 150) problems.push("name is longer than 150 characters");
 
   if (!sku) {
-    problems.push("sku খালি");
+    problems.push("sku is empty");
   } else if (existingSkus.has(sku)) {
-    problems.push(`SKU ${sku} আগে থেকেই আছে`);
+    problems.push(`SKU ${sku} already exists`);
   } else if (fileSkus.has(sku)) {
-    problems.push(`SKU ${sku} CSV-তে দুবার আছে`);
+    problems.push(`SKU ${sku} appears twice in the CSV`);
   }
 
   const category = categoryByName.get((data.category || "").toLowerCase());
   if (!data.category) {
-    problems.push("category খালি");
+    problems.push("category is empty");
   } else if (!category) {
-    problems.push(`category "${data.category}" পাওয়া যায়নি`);
+    problems.push(`category "${data.category}" was not found`);
   } else if (!category.isActive) {
-    problems.push(`category "${data.category}" বন্ধ আছে`);
+    problems.push(`category "${data.category}" is inactive`);
   }
 
   const brand = brandByName.get((data.brand || "").toLowerCase());
   if (!data.brand) {
-    problems.push("brand খালি");
+    problems.push("brand is empty");
   } else if (!brand) {
-    problems.push(`brand "${data.brand}" পাওয়া যায়নি`);
+    problems.push(`brand "${data.brand}" was not found`);
   } else if (!brand.isActive) {
-    problems.push(`brand "${data.brand}" বন্ধ আছে`);
+    problems.push(`brand "${data.brand}" is inactive`);
   }
 
   const sellingPrice = toNumber(data.selling_price, NaN);
   if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
-    problems.push("selling_price সঠিক সংখ্যা নয়");
+    problems.push("selling_price is not a valid number");
   }
 
   const purchasePrice = toNumber(data.purchase_price, 0);
   if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
-    problems.push("purchase_price সঠিক সংখ্যা নয়");
+    problems.push("purchase_price is not a valid number");
   }
 
   const minStockLevel = toNumber(data.min_stock_level, 0);
   if (!Number.isInteger(minStockLevel) || minStockLevel < 0) {
-    problems.push("min_stock_level পূর্ণ সংখ্যা হতে হবে");
+    problems.push("min_stock_level must be a whole number");
   }
 
   const openingStock = toNumber(data.opening_stock, 0);
   if (!Number.isInteger(openingStock) || openingStock < 0) {
-    problems.push("opening_stock পূর্ণ সংখ্যা হতে হবে");
+    problems.push("opening_stock must be a whole number");
   }
 
   if (barcode) {
     if (existingBarcodes.has(barcode) || fileBarcodes.has(barcode)) {
-      problems.push(`barcode ${barcode} আগে থেকেই আছে`);
+      problems.push(`barcode ${barcode} already exists`);
     }
   }
 
   if (problems.length > 0) {
-    errors.push({ row, name: name || "(নাম নেই)", problems });
+    errors.push({ row, name: name || "(no name)", problems });
     continue;
   }
 
@@ -193,28 +193,28 @@ for (const { row, data } of records) {
   });
 }
 
-console.log(`\nমোট সারি: ${records.length}`);
-console.log(`ঠিক আছে: ${valid.length}`);
-console.log(`ভুল: ${errors.length}`);
+console.log(`\nTotal rows: ${records.length}`);
+console.log(`Valid: ${valid.length}`);
+console.log(`Invalid: ${errors.length}`);
 
 if (errors.length > 0) {
-  console.log("\nভুল সারিগুলো (এগুলো আমদানি হবে না):");
+  console.log("\nInvalid rows (these will not be imported):");
   for (const item of errors) {
-    console.log(`  সারি ${item.row} (${item.name}): ${item.problems.join("; ")}`);
+    console.log(`  Row ${item.row} (${item.name}): ${item.problems.join("; ")}`);
   }
 }
 
 if (valid.length > 0) {
-  console.log("\nআমদানির পূর্বরূপ:");
+  console.log("\nImport preview:");
   for (const item of valid) {
     console.log(
-      `  ${item.name} | ${item.sku} | ${item.category.name} | ${item.brand.name} | বিক্রয় ${item.sellingPrice} | শুরুর স্টক ${item.openingStock}`
+      `  ${item.name} | ${item.sku} | ${item.category.name} | ${item.brand.name} | Selling ${item.sellingPrice} | Opening stock ${item.openingStock}`
     );
   }
 }
 
 if (!apply) {
-  console.log("\nএটি শুধু পূর্বরূপ, কিছু লেখা হয়নি। সত্যিকার আমদানি করতে কমান্ডের শেষে --apply যোগ করুন।");
+  console.log("\nThis is only a preview. Nothing was saved. To import for real, add --apply at the end of the command.");
   await mongoose.disconnect();
   process.exit(0);
 }
@@ -288,12 +288,12 @@ for (const item of valid) {
   }
 }
 
-console.log(`\nআমদানি হয়েছে: ${imported} টি`);
+console.log(`\nImported: ${imported}`);
 
 if (failed.length > 0) {
-  console.log("\nআমদানি ব্যর্থ হয়েছে:");
+  console.log("\nFailed to import:");
   for (const item of failed) {
-    console.log(`  সারি ${item.row} (${item.name}): ${item.message}`);
+    console.log(`  Row ${item.row} (${item.name}): ${item.message}`);
   }
 }
 

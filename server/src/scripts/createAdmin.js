@@ -1,4 +1,4 @@
-﻿import dotenv from "dotenv";
+import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
@@ -6,7 +6,7 @@ import User from "../models/User.js";
 
 dotenv.config();
 
-// কমান্ড থেকে পাওয়া তথ্য: node src/scripts/createAdmin.js "নাম" email "password"
+// Values come from the command line: node src/scripts/createAdmin.js "name" email "password"
 const [, , name, email, password] = process.argv;
 
 async function createAdmin() {

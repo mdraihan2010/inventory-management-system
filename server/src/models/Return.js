@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 export const RETURN_KINDS = ["CUSTOMER", "SUPPLIER"];
 
@@ -10,7 +10,7 @@ const returnItemSchema = new mongoose.Schema(
     quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
     lineTotal: { type: Number, required: true, min: 0 },
-    // মূল বিক্রির ক্রয়মূল্য। গ্রাহকের ফেরতে লাভ থেকে এটা বাদ যাবে
+    // Purchase cost of the original sale. For customer returns, this is removed from profit
     costPrice: { type: Number, default: null, min: 0 },
   },
   { _id: false }
@@ -20,7 +20,7 @@ const returnSchema = new mongoose.Schema(
   {
     returnNumber: { type: String, required: true, unique: true },
     kind: { type: String, required: true, enum: RETURN_KINDS, index: true },
-    // গ্রাহকের ফেরতের জন্য বিক্রি, সরবরাহকারীকে ফেরতের জন্য ক্রয়
+    // For customer returns, the sale; for returns to suppliers, the purchase
     sale: { type: mongoose.Schema.Types.ObjectId, ref: "Sale", default: null, index: true },
     purchase: { type: mongoose.Schema.Types.ObjectId, ref: "Purchase", default: null, index: true },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", default: null },
@@ -30,11 +30,11 @@ const returnSchema = new mongoose.Schema(
       validate: { validator: (items) => items.length > 0, message: "At least one item is required" },
     },
     totalValue: { type: Number, required: true, min: 0 },
-    // ফেরতের মূল্যের যে অংশ বাকি কমাল (শুধু গ্রাহকের ফেরত)
+    // The part of the return value that reduced the balance (customer returns only)
     creditApplied: { type: Number, default: 0, min: 0 },
-    // বাকির বেশি অংশ যা নগদে ফেরত গেল (শুধু গ্রাহকের ফেরত)
+    // The part above the balance that was refunded in cash (customer returns only)
     cashRefund: { type: Number, default: 0, min: 0 },
-    // নগদ ফেরত দিলে কোন পদ্ধতিতে দেওয়া হলো
+    // The method used for the cash refund
     refundMethod: { type: String, default: null },
     reason: { type: String, required: true, trim: true, maxlength: 300 },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },

@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 export const MOVEMENT_TYPES = [
   "OPENING_STOCK",
@@ -14,7 +14,7 @@ const stockMovementSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true, index: true },
     type: { type: String, required: true, enum: MOVEMENT_TYPES },
-    // ধনাত্মক মানে স্টক বাড়ল, ঋণাত্মক মানে কমল। 0 হলে রেকর্ডের কোনো মানে নেই
+    // A positive value means stock increased, a negative value means it decreased. A value of 0 has no meaning for a record
     change: {
       type: Number,
       required: true,

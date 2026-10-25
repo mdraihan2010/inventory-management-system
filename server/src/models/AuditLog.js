@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const auditLogSchema = new mongoose.Schema(
   {
@@ -6,7 +6,7 @@ const auditLogSchema = new mongoose.Schema(
     action: { type: String, required: true, trim: true, maxlength: 60 },
     entityType: { type: String, required: true, trim: true, maxlength: 40, index: true },
     entityId: { type: String, required: true, index: true },
-    // পরিবর্তনের সারাংশ। পাসওয়ার্ড বা token এখানে কখনো থাকবে না
+    // Summary of the change. Passwords or tokens are never stored here
     summary: { type: String, trim: true, maxlength: 500, default: "" },
   },
   { timestamps: true }
