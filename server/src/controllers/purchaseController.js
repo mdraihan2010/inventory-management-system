@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 import mongoose from "mongoose";
 import Purchase from "../models/Purchase.js";
 import Supplier from "../models/Supplier.js";
@@ -6,12 +6,12 @@ import Product from "../models/Product.js";
 
 const STATUSES = ["DRAFT", "COMPLETED", "CANCELLED"];
 
-// টাকার হিসাব দুই দশমিক স্থান পর্যন্ত রাখা হয়
+// Money amounts are kept to two decimal places
 function roundMoney(value) {
   return Math.round(value * 100) / 100;
 }
 
-// যেমন PUR-20261019-A1B2C3
+// For example PUR-20261019-A1B2C3
 function makePurchaseNumber() {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const random = crypto.randomBytes(3).toString("hex").toUpperCase();
@@ -108,7 +108,7 @@ export async function createPurchase(req, res) {
   }
 }
 
-// সব চালান, নতুনটা আগে। status বা supplier দিয়ে ফিল্টার করা যাবে
+// All purchases, newest first. Can be filtered by status or supplier
 export async function getPurchases(req, res) {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -144,7 +144,7 @@ export async function getPurchases(req, res) {
   }
 }
 
-// একটা চালানের বিস্তারিত
+// Details of one purchase
 export async function getPurchaseById(req, res) {
   try {
     const { id } = req.params;

@@ -1,12 +1,12 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import StockMovement, { MOVEMENT_TYPES } from "../models/StockMovement.js";
 
-// কোন ধরনের movement হলে স্টক বাড়ে, কোনটায় কমে
+// Which movement types increase stock and which decrease it
 const INCREASING_TYPES = ["OPENING_STOCK", "PURCHASE", "CUSTOMER_RETURN"];
 const DECREASING_TYPES = ["SALE", "SUPPLIER_RETURN", "DAMAGED"];
 
-// একটা নির্দিষ্ট পরিমাণ স্টক পরিবর্তন করে, এবং রেকর্ড রাখে
+// Changes stock by a set quantity and keeps a record
 export async function adjustStock(req, res) {
   try {
     const body = req.body || {};
@@ -20,12 +20,12 @@ export async function adjustStock(req, res) {
       return res.status(400).json({ success: false, message: "Invalid movement type" });
     }
 
-    // পরিমাণ অবশ্যই ধনাত্মক পূর্ণসংখ্যা হতে হবে। চিহ্ন type ঠিক করে, ব্যবহারকারী নয়
+    // The quantity must be a positive whole number. The type sets the sign, not the user
     if (!Number.isInteger(quantity) || quantity <= 0) {
       return res.status(400).json({ success: false, message: "Quantity must be a positive whole number" });
     }
 
-    // ADJUSTMENT সবসময় কারণসহ হতে হবে
+    // An ADJUSTMENT must always have a reason
     if (type === "ADJUSTMENT" && (typeof reason !== "string" || !reason.trim())) {
       return res.status(400).json({ success: false, message: "A reason is required for stock adjustment" });
     }
@@ -36,14 +36,14 @@ export async function adjustStock(req, res) {
     } else if (DECREASING_TYPES.includes(type)) {
       change = -quantity;
     } else {
-      // ADJUSTMENT-এ quantity নিজে চিহ্নসহ নেওয়ার জন্য আলাদা নিয়ম দরকার, তাই এখন বাদ
+      // ADJUSTMENT with a signed quantity needs its own rules, so it is not supported yet
       return res.status(400).json({
         success: false,
         message: "Use a supported movement type: OPENING_STOCK, PURCHASE, CUSTOMER_RETURN, SALE, SUPPLIER_RETURN or DAMAGED",
       });
     }
 
-    // শর্তসহ আপডেট: স্টক যথেষ্ট না থাকলে কিছুই বদলাবে না
+    // Conditional update: if there is not enough stock, nothing changes
     const filter = { _id: productId };
     if (change < 0) {
       filter.currentStock = { $gte: quantity };
@@ -56,7 +56,7 @@ export async function adjustStock(req, res) {
     );
 
     if (!product) {
-      // পণ্যটি আছে কিনা না থাকলে কারণ আলাদা করে জানাই
+      // If the product is missing, report that separately as the reason
       const exists = await Product.exists({ _id: productId });
       if (!exists) {
         return res.status(404).json({ success: false, message: "Product not found" });
@@ -94,7 +94,7 @@ export async function adjustStock(req, res) {
   }
 }
 
-// একটা পণ্যের স্টক পরিবর্তনের ইতিহাস, সবচেয়ে নতুনটা আগে
+// Stock change history for one product, newest first
 export async function getStockMovements(req, res) {
   try {
     const { productId } = req.query;
@@ -120,7 +120,7 @@ export async function getStockMovements(req, res) {
   }
 }
 
-// স্টক শেষ হয়ে গেছে এমন পণ্য, এবং স্টক কম এমন পণ্য
+// Products that are out of stock, and products with low stock
 export async function getStockAlerts(req, res) {
   try {
     const outOfStock = await Product.find({ isActive: true, currentStock: 0 })

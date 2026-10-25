@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 import Purchase from "../models/Purchase.js";
 import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
@@ -75,7 +75,7 @@ export async function completePurchase(req, res) {
       completed = await completeInsideTransaction(id, req.user._id, session);
     });
 
-    // আর্থিক সিদ্ধান্ত: মাল গ্রহণ ও স্টক বাড়ানো
+    // Financial decision: goods received and stock increased
     await logAudit({
       userId: req.user._id,
       action: "COMPLETE",

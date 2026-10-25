@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 import mongoose from "mongoose";
 import Sale from "../models/Sale.js";
 import Product from "../models/Product.js";
@@ -28,7 +28,7 @@ function newReturnNumber() {
   return `RET-${date}-${random}`;
 }
 
-// এই বিক্রির আগের সব গ্রাহক-ফেরতে কোন পণ্য কত ফেরত গেছে, তার হিসাব
+// Total quantity of each product already returned by customers for this sale
 async function returnedQuantities(saleId, session) {
   const rows = await Return.aggregate([
     { $match: { kind: "CUSTOMER", sale: saleId } },
@@ -39,7 +39,7 @@ async function returnedQuantities(saleId, session) {
   return new Map(rows.map((row) => [String(row._id), row.returned]));
 }
 
-// কোন পণ্য কতটি ফেরত দেওয়া যাবে, সেটা দেখানোর জন্য
+// Shows how many of each product can still be returned
 export async function getReturnableItems(req, res) {
   const { saleId } = req.params;
 
@@ -89,7 +89,7 @@ export async function getReturnableItems(req, res) {
   }
 }
 
-// গ্রাহকের ফেরত: পণ্য ফেরত, স্টক বাড়ানো, বাকি কমানো, বাকির বেশি অংশ নগদে ফেরত
+// Customer return: products come back, stock increases, the balance decreases, and any amount above the balance is refunded in cash
 export async function createCustomerReturn(req, res) {
   const body = req.body || {};
 
@@ -136,7 +136,7 @@ export async function createCustomerReturn(req, res) {
 
       const alreadyReturned = await returnedQuantities(sale._id, session);
 
-      // প্রতিটি লাইনের মূল্য ও সীমা বিক্রির রেকর্ড থেকে নেওয়া হয়, ব্যবহারকারীর দেওয়া দাম থেকে নয়
+      // The price and limit of each line come from the sale record, not from the price the user sends
       const lines = body.items.map((requested) => {
         const saleItem = sale.items.find((item) => String(item.product) === requested.productId);
         if (!saleItem) {
@@ -145,7 +145,7 @@ export async function createCustomerReturn(req, res) {
 
         const remaining = saleItem.quantity - (alreadyReturned.get(requested.productId) || 0);
         if (requested.quantity > remaining) {
-          throw httpError(409, `${saleItem.productName}: সর্বোচ্চ ${remaining} টি ফেরত দেওয়া যাবে`);
+          throw httpError(409, `${saleItem.productName}: you can return at most ${remaining}`);
         }
 
         return {
@@ -161,7 +161,7 @@ export async function createCustomerReturn(req, res) {
 
       const totalValue = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
 
-      // আগে বাকি কমবে, বাকির বেশি অংশ নগদে ফেরত যাবে
+      // The balance is reduced first. Any amount above the balance is refunded in cash
       const creditApplied = roundMoney(Math.min(totalValue, sale.outstandingAmount));
       const cashRefund = roundMoney(totalValue - creditApplied);
 
@@ -169,7 +169,7 @@ export async function createCustomerReturn(req, res) {
         throw httpError(400, `Refund method is required when cash is refunded. Use one of: ${PAYMENT_METHODS.join(", ")}`);
       }
 
-      // স্টক বাড়ানো ও রেকর্ড রাখা
+      // Increase stock and keep the records
       for (const line of lines) {
         const product = await Product.findByIdAndUpdate(
           line.product,
@@ -224,7 +224,7 @@ export async function createCustomerReturn(req, res) {
       result = { returnDoc, sale };
     });
 
-    // আর্থিক সিদ্ধান্ত: transaction সফল হওয়ার পরে রেকর্ড
+    // Financial decision: write the record after the transaction succeeds
     await logAudit({
       userId: req.user._id,
       action: "CUSTOMER_RETURN",
@@ -261,7 +261,7 @@ export async function createCustomerReturn(req, res) {
   }
 }
 
-// ফেরতের তালিকা, পাতা ভাগ করে। গ্রাহক, সরবরাহকারী, বিক্রি ও ক্রয়ের নাম সহ
+// Return list, with pagination। গ্রাহক, সরবরাহকারী, বিক্রি ও ক্রয়ের নাম সহ
 export async function getReturns(req, res) {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));

@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 import mongoose from "mongoose";
 import Sale from "../models/Sale.js";
 import Customer from "../models/Customer.js";
@@ -30,7 +30,7 @@ function paymentStatusFor(grandTotal, paidAmount) {
   return "PARTIALLY_PAID";
 }
 
-// POST /api/v1/sales: খসড়া বিক্রি তৈরি, স্টক এখনো কমে না
+// POST /api/v1/sales: creates a draft sale. Stock does not decrease yet
 export async function createSale(req, res) {
   try {
     const body = req.body || {};
@@ -102,7 +102,7 @@ export async function createSale(req, res) {
 
     const grandTotal = roundMoney(subtotal - discount);
 
-    // পরিশোধ শুধু সম্পন্ন বিক্রির পরে, Payment API দিয়ে
+    // Payments are recorded only after the sale is completed, through the Payment API
     const paidAmount = 0;
 
     const sale = await Sale.create({
@@ -129,7 +129,7 @@ export async function createSale(req, res) {
   }
 }
 
-// GET /api/v1/sales: সব বিক্রি, নতুনটা আগে
+// GET /api/v1/sales: all sales, newest first
 export async function getSales(req, res) {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -191,7 +191,7 @@ export async function getSaleById(req, res) {
   }
 }
 
-// একটা transaction-এর ভিতরে সব কাজ: status, স্টক, রেকর্ড, এবং ক্রয়মূল্য
+// All steps run inside one transaction: status, stock, records and purchase cost
 async function completeInsideTransaction(saleId, userId, session) {
   const sale = await Sale.findOneAndUpdate(
     { _id: saleId, status: "DRAFT" },
@@ -279,7 +279,7 @@ export async function completeSale(req, res) {
       completed = await completeInsideTransaction(id, req.user._id, session);
     });
 
-    // আর্থিক সিদ্ধান্ত: transaction সফল হওয়ার পরে রেকর্ড
+    // Financial decision: write the record after the transaction succeeds
     await logAudit({
       userId: req.user._id,
       action: "COMPLETE",
@@ -304,7 +304,7 @@ export async function completeSale(req, res) {
   }
 }
 
-// POST /api/v1/sales/:id/cancel: শুধু খসড়া বাতিল হয়
+// POST /api/v1/sales/:id/cancel: only draft sales can be cancelled
 export async function cancelSale(req, res) {
   try {
     const { id } = req.params;

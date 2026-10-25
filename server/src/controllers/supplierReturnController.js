@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 import mongoose from "mongoose";
 import Purchase from "../models/Purchase.js";
 import Product from "../models/Product.js";
@@ -27,7 +27,7 @@ function newReturnNumber() {
   return `RET-${date}-${random}`;
 }
 
-// এই ক্রয়ের আগের সব সরবরাহকারী-ফেরতে কোন পণ্য কত ফেরত গেছে, তার হিসাব
+// Total quantity of each product already returned to suppliers for this purchase
 async function returnedToSupplier(purchaseId, session) {
   const rows = await Return.aggregate([
     { $match: { kind: "SUPPLIER", purchase: purchaseId } },
@@ -38,7 +38,7 @@ async function returnedToSupplier(purchaseId, session) {
   return new Map(rows.map((row) => [String(row._id), row.returned]));
 }
 
-// কোন পণ্য কতটি সরবরাহকারীকে ফেরত দেওয়া যাবে, সেটা দেখানোর জন্য
+// Shows how many of each product can still be returned to the supplier
 export async function getReturnablePurchaseItems(req, res) {
   const { purchaseId } = req.params;
 
@@ -86,7 +86,7 @@ export async function getReturnablePurchaseItems(req, res) {
   }
 }
 
-// সরবরাহকারীকে ফেরত: পণ্য ফেরত দেওয়া হয়, স্টক কমে। সরবরাহকারীর সাথে নগদ লেনদেন নেই
+// Return to supplier: products are sent back and stock decreases. There is no cash transaction with the supplier
 export async function createSupplierReturn(req, res) {
   const body = req.body || {};
 
@@ -133,7 +133,7 @@ export async function createSupplierReturn(req, res) {
 
       const alreadyReturned = await returnedToSupplier(purchase._id, session);
 
-      // মূল্য ও সীমা ক্রয়ের রেকর্ড থেকে নেওয়া হয়, ব্যবহারকারীর দেওয়া দাম থেকে নয়
+      // The price and limit come from the purchase record, not from the price the user sends
       const lines = body.items.map((requested) => {
         const purchaseItem = purchase.items.find((item) => String(item.product) === requested.productId);
         if (!purchaseItem) {
@@ -142,7 +142,7 @@ export async function createSupplierReturn(req, res) {
 
         const remaining = purchaseItem.quantity - (alreadyReturned.get(requested.productId) || 0);
         if (requested.quantity > remaining) {
-          throw httpError(409, `${purchaseItem.productName}: সর্বোচ্চ ${remaining} টি ফেরত দেওয়া যাবে`);
+          throw httpError(409, `${purchaseItem.productName}: you can return at most ${remaining}`);
         }
 
         return {
@@ -158,7 +158,7 @@ export async function createSupplierReturn(req, res) {
 
       const totalValue = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
 
-      // স্টক কমানো। স্টক যথেষ্ট না থাকলে পুরো ফেরত বাতিল হবে
+      // Decrease stock. If there is not enough stock, the whole return is cancelled
       for (const line of lines) {
         const product = await Product.findOneAndUpdate(
           { _id: line.product, currentStock: { $gte: line.quantity } },
@@ -173,7 +173,7 @@ export async function createSupplierReturn(req, res) {
           }
           throw httpError(
             409,
-            `${line.productName}: ফেরত দিতে যথেষ্ট স্টক নেই (বর্তমান স্টক ${existing.currentStock})`
+            `${line.productName}: not enough stock to return (current stock ${existing.currentStock})`
           );
         }
 
@@ -218,7 +218,7 @@ export async function createSupplierReturn(req, res) {
       result = { returnDoc, purchase };
     });
 
-    // আর্থিক সিদ্ধান্ত: transaction সফল হওয়ার পরে রেকর্ড
+    // Financial decision: write the record after the transaction succeeds
     await logAudit({
       userId: req.user._id,
       action: "SUPPLIER_RETURN",

@@ -1,4 +1,4 @@
-﻿import Sale from "../models/Sale.js";
+import Sale from "../models/Sale.js";
 import Purchase from "../models/Purchase.js";
 import Product from "../models/Product.js";
 import Return from "../models/Return.js";
@@ -7,7 +7,7 @@ function roundMoney(value) {
   return Math.round(value * 100) / 100;
 }
 
-// from ও to থেকে তারিখের সীমা বের করে। কিছু না দিলে সব সময়
+// Works out the date range from "from" and "to". If neither is given, all time is used
 function dateRange(query) {
   const range = {};
 
@@ -30,7 +30,7 @@ function dateRange(query) {
   return Object.keys(range).length ? range : null;
 }
 
-// প্রতিটি বিক্রির সাথে তার গ্রাহক-ফেরতের নগদ অংশ যোগ করে
+// Adds the cash refund part of customer returns to each sale
 function cashRefundLookup() {
   return {
     $lookup: {
@@ -51,7 +51,7 @@ function cashRefundLookup() {
 }
 
 // GET /api/v1/reports/sales
-// ফেরত বিক্রির মোট থেকে বাদ যায়। নগদ ফেরত পরিশোধ থেকে বাদ যায়
+// Returns are subtracted from sales totals. Cash refunds are subtracted from payments
 export async function salesReport(req, res) {
   try {
     const range = dateRange(req.query);
@@ -106,7 +106,7 @@ export async function salesReport(req, res) {
 }
 
 // GET /api/v1/reports/purchases
-// সরবরাহকারীকে ফেরত দেওয়া পণ্যের মূল্য ক্রয় থেকে বাদ যায়
+// The value of products returned to suppliers is subtracted from purchases
 export async function purchasesReport(req, res) {
   try {
     const range = dateRange(req.query);
@@ -184,14 +184,14 @@ export async function stockValueReport(req, res) {
 }
 
 // GET /api/v1/reports/profit
-// লাভ শুধু ক্রয়মূল্যসহ বিক্রির লাইন থেকে হিসাব হয়। ফেরত লাইন এখান থেকে বাদ যায়
+// Profit is calculated only from sale lines that have a purchase cost. Returned lines are removed here
 export async function profitReport(req, res) {
   try {
     const range = dateRange(req.query);
     const match = { status: "COMPLETED" };
     if (range) match.saleDate = range;
 
-    // এই লাইনে costPrice একটি সংখ্যা হিসেবে আছে কিনা। পুরোনো লাইনে field-ই নেই, তাই এটা false
+    // Checks whether this line has costPrice as a number. Older lines have no such field, so this is false
     const hasCost = { $in: [{ $type: "$items.costPrice" }, ["double", "int", "long", "decimal"]] };
 
     const [sales] = await Sale.aggregate([
@@ -213,7 +213,7 @@ export async function profitReport(req, res) {
       },
     ]);
 
-    // ফেরত দেওয়া লাইনগুলো। শুধু সেই বিক্রি থেকে, যেগুলো এই সময়সীমায় পড়ে
+    // Returned lines, only from sales that fall within this period
     const returnedMatch = { "saleDoc.status": "COMPLETED" };
     if (range) returnedMatch["saleDoc.saleDate"] = range;
 
