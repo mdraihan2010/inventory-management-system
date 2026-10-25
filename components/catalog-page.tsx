@@ -1,10 +1,10 @@
-'use client'
-import { rowAction } from '@/components/ui/row-action'
+﻿'use client'
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Power, X } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { rowAction } from '@/components/ui/row-action'
 
 type Kind = 'categories' | 'brands'
 
@@ -21,28 +21,27 @@ type ListResponse = {
   data: CatalogItem[]
 }
 
-const KIND_TEXT: Record<Kind, { title: string; eyebrow: string; subtitle: string; addLabel: string; empty: string }> = {
+const KIND_TEXT: Record<Kind, { title: string; singular: string; eyebrow: string; subtitle: string; addLabel: string; empty: string }> = {
   categories: {
-    title: 'ক্যাটাগরি',
+    title: 'Categories',
+    singular: 'category',
     eyebrow: 'Workspace / Categories',
-    subtitle: 'পণ্যের ক্যাটাগরি যোগ ও ব্যবস্থাপনা।',
-    addLabel: 'নতুন ক্যাটাগরি',
-    empty: 'কোনো ক্যাটাগরি পাওয়া যায়নি।',
+    subtitle: 'Add and manage product categories.',
+    addLabel: 'New category',
+    empty: 'No categories found.',
   },
   brands: {
-    title: 'ব্র্যান্ড',
+    title: 'Brands',
+    singular: 'brand',
     eyebrow: 'Workspace / Brands',
-    subtitle: 'পণ্যের ব্র্যান্ড যোগ ও ব্যবস্থাপনা।',
-    addLabel: 'নতুন ব্র্যান্ড',
-    empty: 'কোনো ব্র্যান্ড পাওয়া যায়নি।',
+    subtitle: 'Add and manage product brands.',
+    addLabel: 'New brand',
+    empty: 'No brands found.',
   },
 }
 
 const inputClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900'
-
-const buttonClass =
-  'rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40'
 
 export function CategoriesPage({ canManage }: { canManage: boolean }) {
   return <CatalogManager kind="categories" canManage={canManage} />
@@ -70,7 +69,7 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
       const response = await apiRequest<ListResponse>(`/${kind}`)
       setItems(response.data)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : `${text.title}-এর তালিকা আনা যায়নি।`)
+      setError(err instanceof ApiError ? err.message : `Could not load the ${text.title.toLowerCase()} list.`)
     } finally {
       setLoading(false)
     }
@@ -84,8 +83,8 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
   const visible = query ? items.filter((item) => item.name.toLowerCase().includes(query)) : items
 
   async function toggleActive(item: CatalogItem) {
-    const action = item.isActive ? 'বন্ধ' : 'চালু'
-    if (!window.confirm(`"${item.name}" ${action} করতে চান?`)) return
+    const action = item.isActive ? 'deactivate' : 'activate'
+    if (!window.confirm(`Are you sure you want to ${action} "${item.name}"?`)) return
 
     setError('')
     setNotice('')
@@ -96,10 +95,10 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
         method: 'PATCH',
         body: { isActive: !item.isActive },
       })
-      setNotice(`${text.title} ${action} করা হয়েছে।`)
+      setNotice(`${text.singular.charAt(0).toUpperCase()}${text.singular.slice(1)} ${item.isActive ? 'deactivated' : 'activated'}.`)
       loadItems()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'পরিবর্তন সংরক্ষণ করা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not save the change.')
     } finally {
       setBusyId(null)
     }
@@ -123,13 +122,13 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
       <section className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-title">
-            <h2>{text.title}-এর তালিকা</h2>
-            <span>মোট {items.length} টি</span>
+            <h2>{text.title} list</h2>
+            <span>Total {items.length}</span>
           </div>
           <div className="toolbar-actions">
             <input
               className={inputClass + ' max-w-xs'}
-              placeholder="নাম খুঁজুন..."
+              placeholder="Search by name..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -143,14 +142,14 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
           <table>
             <thead>
               <tr>
-                <th>নাম</th>
-                <th>বিবরণ</th>
-                <th>অবস্থা</th>
-                {canManage && <th>কাজ</th>}
+                <th>Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                {canManage && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={canManage ? 4 : 3}>লোড হচ্ছে...</td></tr>}
+              {loading && <tr><td colSpan={canManage ? 4 : 3}>Loading...</td></tr>}
               {!loading && visible.length === 0 && (
                 <tr><td colSpan={canManage ? 4 : 3}>{text.empty}</td></tr>
               )}
@@ -160,21 +159,21 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
                   <td>{item.description || '—'}</td>
                   <td>
                     <span className={`status ${item.isActive ? 'in-stock' : 'out-of-stock'}`}>
-                      {item.isActive ? 'সক্রিয়' : 'বন্ধ'}
+                      {item.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   {canManage && (
                     <td>
                       <div className="flex gap-1">
                         <button className={rowAction.edit} onClick={() => setEditing({ item })}>
-                          <Pencil className="inline size-3" /> সম্পাদনা
+                          <Pencil className="inline size-3" /> Edit
                         </button>
                         <button
                           className={item.isActive ? rowAction.danger : rowAction.success}
                           disabled={busyId === item._id}
                           onClick={() => toggleActive(item)}
                         >
-                          <Power className="inline size-3" /> {item.isActive ? 'বন্ধ' : 'চালু'}
+                          <Power className="inline size-3" /> {item.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                       </div>
                     </td>
@@ -189,7 +188,7 @@ function CatalogManager({ kind, canManage }: { kind: Kind; canManage: boolean })
       {editing && (
         <CatalogModal
           kind={kind}
-          title={text.title}
+          title={text.singular}
           item={editing.item}
           onClose={() => setEditing(null)}
           onSaved={(message) => {
@@ -236,13 +235,14 @@ function CatalogModal({
   const [description, setDescription] = useState(item?.description ?? '')
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const label = title.charAt(0).toUpperCase() + title.slice(1)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormError('')
 
     if (!name.trim()) {
-      setFormError(`${title}-এর নাম লিখুন।`)
+      setFormError(`Enter a ${title} name.`)
       return
     }
 
@@ -252,31 +252,31 @@ function CatalogModal({
     try {
       if (item) {
         await apiRequest(`/${kind}/${item._id}`, { method: 'PATCH', body: payload })
-        onSaved(`${title}-এর তথ্য হালনাগাদ করা হয়েছে।`)
+        onSaved(`${label} updated.`)
       } else {
         await apiRequest(`/${kind}`, { method: 'POST', body: payload })
-        onSaved(`নতুন ${title} যোগ করা হয়েছে।`)
+        onSaved(`New ${title} added.`)
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        setFormError(`এই নামে ইতিমধ্যে একটি ${title} আছে।`)
+        setFormError(`A ${title} with this name already exists.`)
       } else {
-        setFormError(err instanceof ApiError ? err.message : 'সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।')
+        setFormError(err instanceof ApiError ? err.message : 'Could not save. Please try again.')
       }
       setSaving(false)
     }
   }
 
   return (
-    <ModalShell title={item ? `${title} সম্পাদনা` : `নতুন ${title}`} onClose={onClose}>
+    <ModalShell title={item ? `Edit ${title}` : `New ${title}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">নাম *</span>
+          <span className="text-sm font-medium text-gray-700">Name *</span>
           <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">বিবরণ (ঐচ্ছিক)</span>
+          <span className="text-sm font-medium text-gray-700">Description (optional)</span>
           <textarea className={inputClass} rows={2} value={description} onChange={(event) => setDescription(event.target.value)} />
         </label>
 
@@ -284,10 +284,10 @@ function CatalogModal({
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
-            বাতিল
+            Cancel
           </button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+            {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </form>

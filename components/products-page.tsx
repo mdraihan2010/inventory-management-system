@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Power, X } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
+import { formatMoney } from '@/lib/money'
 import { Button } from '@/components/ui/button'
 
 type Ref = { _id: string; name: string; isActive: boolean }
@@ -59,12 +60,6 @@ const EMPTY_FORM: FormState = {
   unit: 'pcs',
 }
 
-const numberFormat = new Intl.NumberFormat('en-IN')
-
-function taka(value: number): string {
-  return `৳ ${numberFormat.format(value)}`
-}
-
 const inputClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900'
 
@@ -85,7 +80,7 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
   const [notice, setNotice] = useState('')
   const [modal, setModal] = useState<{ product: Product | null } | null>(null)
 
-  // খোঁজার লেখা লেখা শেষ হওয়ার ৩০০ মিলিসেকেন্ড পরে অনুসন্ধান শুরু হয়
+  // Start searching 300 milliseconds after the user stops typing
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search)
@@ -119,7 +114,7 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
       setTotal(response.total)
       setTotalPages(Math.max(response.totalPages, 1))
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'পণ্যের তালিকা আনা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not load the product list.')
     } finally {
       setLoading(false)
     }
@@ -130,8 +125,8 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
   }, [loadProducts])
 
   async function toggleActive(product: Product) {
-    const action = product.isActive ? 'বন্ধ' : 'চালু'
-    if (!window.confirm(`"${product.name}" পণ্যটি ${action} করতে চান?`)) return
+    const action = product.isActive ? 'deactivate' : 'activate'
+    if (!window.confirm(`Are you sure you want to ${action} "${product.name}"?`)) return
 
     setError('')
     setNotice('')
@@ -140,10 +135,10 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
         method: 'PATCH',
         body: { isActive: !product.isActive },
       })
-      setNotice(`পণ্যটি ${action} করা হয়েছে।`)
+      setNotice(product.isActive ? 'Product deactivated.' : 'Product activated.')
       loadProducts()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'পরিবর্তন সংরক্ষণ করা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not save the change.')
     }
   }
 
@@ -158,12 +153,12 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Workspace / Products</p>
-          <h1>পণ্য</h1>
-          <p className="subheading">সব পণ্যের তালিকা, খোঁজা ও ব্যবস্থাপনা।</p>
+          <h1>Products</h1>
+          <p className="subheading">View, search and manage all products.</p>
         </div>
         {canManage && (
           <button className="primary-button" onClick={() => setModal({ product: null })}>
-            <Plus /> নতুন পণ্য
+            <Plus /> New product
           </button>
         )}
       </div>
@@ -171,13 +166,13 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
       <section className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-title">
-            <h2>পণ্যের তালিকা</h2>
-            <span>মোট {total} টি</span>
+            <h2>Product list</h2>
+            <span>Total {total}</span>
           </div>
           <div className="toolbar-actions">
             <input
               className={inputClass + ' max-w-xs'}
-              placeholder="নাম, SKU বা বারকোড খুঁজুন..."
+              placeholder="Search by name, SKU or barcode..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -186,7 +181,7 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
               value={categoryId}
               onChange={(event) => { setCategoryId(event.target.value); setPage(1) }}
             >
-              <option value="">সব ক্যাটাগরি</option>
+              <option value="">All categories</option>
               {categories.map((category) => <option key={category._id} value={category._id}>{category.name}</option>)}
             </select>
             <select
@@ -194,7 +189,7 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
               value={brandId}
               onChange={(event) => { setBrandId(event.target.value); setPage(1) }}
             >
-              <option value="">সব ব্র্যান্ড</option>
+              <option value="">All brands</option>
               {brands.map((brand) => <option key={brand._id} value={brand._id}>{brand.name}</option>)}
             </select>
             <select
@@ -202,9 +197,9 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
               value={activeFilter}
               onChange={(event) => { setActiveFilter(event.target.value); setPage(1) }}
             >
-              <option value="">সব অবস্থা</option>
-              <option value="true">সক্রিয়</option>
-              <option value="false">বন্ধ</option>
+              <option value="">All statuses</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
             </select>
           </div>
         </div>
@@ -216,22 +211,22 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
           <table>
             <thead>
               <tr>
-                <th>পণ্য</th>
-                <th>ক্যাটাগরি</th>
-                <th>ব্র্যান্ড</th>
-                <th>স্টক</th>
-                <th>ক্রয়মূল্য</th>
-                <th>বিক্রয়মূল্য</th>
-                <th>অবস্থা</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Brand</th>
+                <th>Stock</th>
+                <th>Purchase price</th>
+                <th>Selling price</th>
+                <th>Status</th>
                 {canManage && <th />}
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={canManage ? 8 : 7}>লোড হচ্ছে...</td></tr>
+                <tr><td colSpan={canManage ? 8 : 7}>Loading...</td></tr>
               )}
               {!loading && products.length === 0 && (
-                <tr><td colSpan={canManage ? 8 : 7}>কোনো পণ্য পাওয়া যায়নি।</td></tr>
+                <tr><td colSpan={canManage ? 8 : 7}>No products found.</td></tr>
               )}
               {!loading && products.map((product) => (
                 <tr key={product._id}>
@@ -244,22 +239,22 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
                     </strong>{' '}
                     {product.unit}
                   </td>
-                  <td>{taka(product.purchasePrice)}</td>
-                  <td>{taka(product.sellingPrice)}</td>
+                  <td>{formatMoney(product.purchasePrice)}</td>
+                  <td>{formatMoney(product.sellingPrice)}</td>
                   <td>
                     <span className={`status ${product.isActive ? 'in-stock' : 'out-of-stock'}`}>
-                      {product.isActive ? 'সক্রিয়' : 'বন্ধ'}
+                      {product.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   {canManage && (
                     <td>
                       <div className="flex gap-2">
-                        <button className="rounded-md p-1.5 text-indigo-600 transition hover:bg-indigo-50" title="সম্পাদনা" aria-label={`Edit ${product.name}`} onClick={() => setModal({ product })}>
+                        <button className="rounded-md p-1.5 text-indigo-600 transition hover:bg-indigo-50" title="Edit" aria-label={`Edit ${product.name}`} onClick={() => setModal({ product })}>
                           <Pencil />
                         </button>
                         <button
                           className={product.isActive ? 'rounded-md p-1.5 text-red-600 transition hover:bg-red-50' : 'rounded-md p-1.5 text-emerald-600 transition hover:bg-emerald-50'}
-                          title={product.isActive ? 'বন্ধ করুন' : 'চালু করুন'}
+                          title={product.isActive ? 'Deactivate' : 'Activate'}
                           aria-label={`Toggle ${product.name}`}
                           onClick={() => toggleActive(product)}
                         >
@@ -275,13 +270,13 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
         </div>
 
         <div className="flex items-center justify-between px-4 py-3 text-sm">
-          <span>পৃষ্ঠা {page} / {totalPages}</span>
+          <span>Page {page} / {totalPages}</span>
           <div className="flex gap-2">
             <button className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>
-              আগের
+              Previous
             </button>
             <button className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40" disabled={page >= totalPages || loading} onClick={() => setPage((current) => current + 1)}>
-              পরের
+              Next
             </button>
           </div>
         </div>
@@ -293,7 +288,7 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
           categories={categories}
           brands={brands}
           onClose={() => setModal(null)}
-          onSaved={() => handleSaved(modal.product ? 'পণ্য হালনাগাদ করা হয়েছে।' : 'নতুন পণ্য যোগ করা হয়েছে।')}
+          onSaved={() => handleSaved(modal.product ? 'Product updated.' : 'New product added.')}
         />
       )}
     </>
@@ -353,29 +348,29 @@ function ProductModal({
     setFormError('')
 
     if (!form.name.trim() || !form.sku.trim()) {
-      setFormError('পণ্যের নাম ও SKU লিখুন।')
+      setFormError('Enter the product name and SKU.')
       return
     }
     if (!form.category || !form.brand) {
-      setFormError('ক্যাটাগরি ও ব্র্যান্ড বেছে নিন।')
+      setFormError('Select a category and a brand.')
       return
     }
 
     const sellingPrice = Number(form.sellingPrice)
     if (form.sellingPrice.trim() === '' || Number.isNaN(sellingPrice) || sellingPrice < 0) {
-      setFormError('বিক্রয়মূল্য সঠিকভাবে লিখুন।')
+      setFormError('Enter a valid selling price.')
       return
     }
 
     const purchasePrice = Number(form.purchasePrice || 0)
     if (Number.isNaN(purchasePrice) || purchasePrice < 0) {
-      setFormError('ক্রয়মূল্য সঠিকভাবে লিখুন।')
+      setFormError('Enter a valid purchase price.')
       return
     }
 
     const minStockLevel = Number(form.minStockLevel || 0)
     if (Number.isNaN(minStockLevel) || minStockLevel < 0) {
-      setFormError('সর্বনিম্ন স্টক সঠিকভাবে লিখুন।')
+      setFormError('Enter a valid minimum stock level.')
       return
     }
 
@@ -401,7 +396,7 @@ function ProductModal({
       }
       onSaved()
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।')
+      setFormError(err instanceof ApiError ? err.message : 'Could not save. Please try again.')
       setSaving(false)
     }
   }
@@ -413,51 +408,51 @@ function ProductModal({
         className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">{product ? 'পণ্য সম্পাদনা' : 'নতুন পণ্য যোগ'}</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{product ? 'Edit product' : 'Add new product'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-500">
             <X />
           </button>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="পণ্যের নাম *">
+          <Field label="Product name *">
             <input className={inputClass} value={form.name} onChange={setField('name')} />
           </Field>
           <Field label="SKU *">
             <input className={inputClass} value={form.sku} onChange={setField('sku')} />
           </Field>
-          <Field label="ক্যাটাগরি *">
+          <Field label="Category *">
             <select className={inputClass + ' bg-white'} value={form.category} onChange={setField('category')}>
-              <option value="">বেছে নিন</option>
+              <option value="">Select</option>
               {categories
                 .filter((item) => item.isActive || item._id === form.category)
                 .map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}
             </select>
           </Field>
-          <Field label="ব্র্যান্ড *">
+          <Field label="Brand *">
             <select className={inputClass + ' bg-white'} value={form.brand} onChange={setField('brand')}>
-              <option value="">বেছে নিন</option>
+              <option value="">Select</option>
               {brands
                 .filter((item) => item.isActive || item._id === form.brand)
                 .map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}
             </select>
           </Field>
-          <Field label="ক্রয়মূল্য (৳)">
+          <Field label="Purchase price ($)">
             <input type="number" min="0" className={inputClass} value={form.purchasePrice} onChange={setField('purchasePrice')} />
           </Field>
-          <Field label="বিক্রয়মূল্য (৳) *">
+          <Field label="Selling price ($) *">
             <input type="number" min="0" className={inputClass} value={form.sellingPrice} onChange={setField('sellingPrice')} />
           </Field>
-          <Field label="সর্বনিম্ন স্টক">
+          <Field label="Minimum stock">
             <input type="number" min="0" className={inputClass} value={form.minStockLevel} onChange={setField('minStockLevel')} />
           </Field>
-          <Field label="একক">
+          <Field label="Unit">
             <input className={inputClass} value={form.unit} onChange={setField('unit')} placeholder="pcs, kg, box" />
           </Field>
-          <Field label="বারকোড (ঐচ্ছিক)">
+          <Field label="Barcode (optional)">
             <input className={inputClass} value={form.barcode} onChange={setField('barcode')} />
           </Field>
-          <Field label="বিবরণ (ঐচ্ছিক)">
+          <Field label="Description (optional)">
             <textarea className={inputClass} rows={2} value={form.description} onChange={setField('description')} />
           </Field>
         </div>
@@ -466,10 +461,10 @@ function ProductModal({
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
-            বাতিল
+            Cancel
           </button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+            {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </form>
