@@ -1,8 +1,9 @@
 ﻿'use client'
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Boxes, CircleDollarSign, ShoppingCart, TrendingUp, Truck, WalletCards } from 'lucide-react'
+import { CircleDollarSign, ShoppingCart, TrendingUp, Truck, WalletCards } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
+import { formatMoney } from '@/lib/money'
 
 type RangeKey = 'today' | 'month' | 'lastMonth' | 'all' | 'custom'
 
@@ -45,24 +46,17 @@ type StockValue = {
 type SectionKey = 'sales' | 'purchases' | 'profit' | 'stock'
 
 const RANGE_LABEL: Record<RangeKey, string> = {
-  today: 'আজ',
-  month: 'এই মাস',
-  lastMonth: 'গত মাস',
-  all: 'সব সময়',
-  custom: 'নির্দিষ্ট তারিখ',
+  today: 'Today',
+  month: 'This month',
+  lastMonth: 'Last month',
+  all: 'All time',
+  custom: 'Custom dates',
 }
 
 const RANGE_KEYS: RangeKey[] = ['today', 'month', 'lastMonth', 'all', 'custom']
 
-const numberFormat = new Intl.NumberFormat('en-IN')
-
 const inputClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900'
-
-function taka(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '—'
-  return `৳ ${numberFormat.format(value)}`
-}
 
 function pad(value: number): string {
   return String(value).padStart(2, '0')
@@ -100,7 +94,7 @@ function buildQuery(range: { from?: string; to?: string }): string {
 }
 
 function errorText(reason: unknown): string {
-  return reason instanceof ApiError ? reason.message : 'তথ্য আনা যায়নি।'
+  return reason instanceof ApiError ? reason.message : 'Could not load the information.'
 }
 
 export function ReportsPage({ canManage }: { canManage: boolean }) {
@@ -110,11 +104,11 @@ export function ReportsPage({ canManage }: { canManage: boolean }) {
         <div className="page-heading">
           <div>
             <p className="eyebrow">Workspace / Reports</p>
-            <h1>প্রতিবেদন</h1>
+            <h1>Reports</h1>
           </div>
         </div>
         <section className="panel table-panel">
-          <p className="p-6 text-sm text-gray-600">প্রতিবেদন শুধু Manager ও Administrator দেখতে পারবেন।</p>
+          <p className="p-6 text-sm text-gray-600">Only Managers and Administrators can view reports.</p>
         </section>
       </>
     )
@@ -168,7 +162,7 @@ function ReportsManager() {
   }, [range, customFrom, customTo])
 
   useEffect(() => {
-    // নির্দিষ্ট তারিখ বেছে নেওয়ার আগে কিছু লোড করা হয় না
+    // Nothing loads until both dates are chosen for a custom range
     if (range === 'custom' && (!customFrom || !customTo)) return
     load()
   }, [load, range, customFrom, customTo])
@@ -182,40 +176,40 @@ function ReportsManager() {
 
   const periodText =
     range === 'all'
-      ? 'সব সময়ের হিসাব'
+      ? 'All-time figures'
       : period.from && period.to
-        ? `${period.from} থেকে ${period.to}`
-        : 'তারিখ বেছে নিন'
+        ? `${period.from} to ${period.to}`
+        : 'Choose dates'
 
   const cards = [
     {
-      label: 'মোট বিক্রি',
-      value: taka(sales?.totalSales),
-      note: errors.sales || (sales ? `${sales.count} টি সম্পন্ন বিক্রি` : 'তথ্য পাওয়া যায়নি'),
+      label: 'Total sales',
+      value: formatMoney(sales?.totalSales),
+      note: errors.sales || (sales ? `${sales.count} completed sales` : 'No data available'),
       icon: ShoppingCart,
       tone: 'green',
       isError: Boolean(errors.sales),
     },
     {
-      label: 'মোট ক্রয়',
-      value: taka(purchases?.totalPurchases),
-      note: errors.purchases || (purchases ? `${purchases.count} টি সম্পন্ন ক্রয়` : 'তথ্য পাওয়া যায়নি'),
+      label: 'Total purchases',
+      value: formatMoney(purchases?.totalPurchases),
+      note: errors.purchases || (purchases ? `${purchases.count} completed purchases` : 'No data available'),
       icon: Truck,
       tone: 'blue',
       isError: Boolean(errors.purchases),
     },
     {
-      label: 'মোট লাভ',
-      value: taka(profit?.grossProfit),
-      note: errors.profit || (margin !== null ? `লাভের হার ${margin.toFixed(1)}%` : 'তথ্য পাওয়া যায়নি'),
+      label: 'Gross profit',
+      value: formatMoney(profit?.grossProfit),
+      note: errors.profit || (margin !== null ? `Profit margin ${margin.toFixed(1)}%` : 'No data available'),
       icon: TrendingUp,
       tone: 'purple',
       isError: Boolean(errors.profit),
     },
     {
-      label: 'বর্তমান বাকি',
-      value: taka(sales?.totalOutstanding),
-      note: errors.sales || 'এই সময়ের সম্পন্ন বিক্রির বাকি',
+      label: 'Outstanding balance',
+      value: formatMoney(sales?.totalOutstanding),
+      note: errors.sales || 'Unpaid amount from completed sales in this period',
       icon: WalletCards,
       tone: 'orange',
       isError: Boolean(errors.sales),
@@ -227,8 +221,8 @@ function ReportsManager() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Workspace / Reports</p>
-          <h1>প্রতিবেদন</h1>
-          <p className="subheading">বিক্রি, ক্রয়, লাভ ও স্টক মূল্যের সারসংক্ষেপ।</p>
+          <h1>Reports</h1>
+          <p className="subheading">Summary of sales, purchases, profit and stock value.</p>
         </div>
       </div>
 
@@ -252,13 +246,13 @@ function ReportsManager() {
           {range === 'custom' && (
             <div className="flex items-center gap-2">
               <input type="date" className={inputClass + ' max-w-[11rem]'} value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} />
-              <span className="text-sm text-gray-500">থেকে</span>
+              <span className="text-sm text-gray-500">to</span>
               <input type="date" className={inputClass + ' max-w-[11rem]'} value={customTo} onChange={(event) => setCustomTo(event.target.value)} />
             </div>
           )}
         </div>
         <p className="px-4 pb-3 text-sm text-gray-500">
-          সময়কাল: {periodText}{loading ? ' · লোড হচ্ছে...' : ''}
+          Period: {periodText}{loading ? ' · Loading...' : ''}
         </p>
       </section>
 
@@ -278,7 +272,7 @@ function ReportsManager() {
       <section className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-title">
-            <h2>লাভ-ক্ষতির সারসংক্ষেপ</h2>
+            <h2>Profit and loss summary</h2>
             <span>{periodText}</span>
           </div>
         </div>
@@ -288,15 +282,15 @@ function ReportsManager() {
         {profit && (
           <div className="space-y-4 px-4 pb-4">
             <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-              <Row label="মোট আয় (ক্রয়মূল্যসহ বিক্রি)" value={taka(profit.revenue)} />
-              <Row label="মোট ক্রয়মূল্য খরচ" value={taka(profit.cost)} />
-              <Row label="মোট লাভ" value={taka(profit.grossProfit)} strong />
+              <Row label="Total revenue (from sales)" value={formatMoney(profit.revenue)} />
+              <Row label="Cost of goods sold" value={formatMoney(profit.cost)} />
+              <Row label="Gross profit" value={formatMoney(profit.grossProfit)} strong />
             </div>
 
             {profit.linesWithoutCostPrice > 0 && (
               <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
-                এই সময়ের {profit.linesWithoutCostPrice} টি বিক্রির লাইনে ক্রয়মূল্য সংরক্ষিত নেই (পুরোনো বিক্রি)।
-                তাই সেগুলোর আয় ({taka(profit.revenueWithoutCostPrice)}) লাভের হিসাবে ধরা হয়নি।
+                {profit.linesWithoutCostPrice} sale lines in this period have no saved cost price (older sales).
+                Their revenue ({formatMoney(profit.revenueWithoutCostPrice)}) is therefore not included in the profit calculation.
               </p>
             )}
           </div>
@@ -306,8 +300,8 @@ function ReportsManager() {
       <section className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-title">
-            <h2>বর্তমান স্টক মূল্য</h2>
-            <span>{stock ? `মোট ${taka(stock.totalValue)}` : ''}</span>
+            <h2>Current stock value</h2>
+            <span>{stock ? `Total ${formatMoney(stock.totalValue)}` : ''}</span>
           </div>
         </div>
 
@@ -318,22 +312,22 @@ function ReportsManager() {
             <table>
               <thead>
                 <tr>
-                  <th>পণ্য</th>
+                  <th>Product</th>
                   <th>SKU</th>
-                  <th>স্টক</th>
-                  <th>ক্রয়মূল্য</th>
-                  <th>মূল্য</th>
+                  <th>Stock</th>
+                  <th>Purchase price</th>
+                  <th>Value</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedStock.length === 0 && <tr><td colSpan={5}>কোনো পণ্য পাওয়া যায়নি।</td></tr>}
+                {sortedStock.length === 0 && <tr><td colSpan={5}>No products found.</td></tr>}
                 {sortedStock.map((item) => (
                   <tr key={item.sku}>
                     <td><strong>{item.name}</strong></td>
                     <td>{item.sku}</td>
                     <td>{item.currentStock}</td>
-                    <td>{taka(item.purchasePrice)}</td>
-                    <td>{taka(item.stockValue)}</td>
+                    <td>{formatMoney(item.purchasePrice)}</td>
+                    <td>{formatMoney(item.stockValue)}</td>
                   </tr>
                 ))}
               </tbody>
