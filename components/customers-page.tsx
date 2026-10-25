@@ -1,20 +1,11 @@
-'use client'
-import { rowAction } from '@/components/ui/row-action'
+﻿'use client'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Power, X } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-
-type Customer = {
-  _id: string
-  name: string
-  phone: string
-  email?: string
-  address: string
-  notes: string
-  isActive: boolean
-}
+import { rowAction } from '@/components/ui/row-action'
+import { CustomerDetailModal, type Customer } from '@/components/customers-modals'
 
 type CustomersResponse = {
   success: boolean
@@ -22,18 +13,6 @@ type CustomersResponse = {
   totalPages?: number
   data: Customer[]
 }
-
-type SaleSummary = {
-  _id: string
-  saleNumber: string
-  saleDate: string
-  grandTotal: number
-  outstandingAmount: number
-  status: 'DRAFT' | 'COMPLETED' | 'CANCELLED'
-  paymentStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID'
-}
-
-type SalesResponse = { success: boolean; data: SaleSummary[] }
 
 type FormState = {
   name: string
@@ -51,39 +30,8 @@ const EMPTY_FORM: FormState = {
   notes: '',
 }
 
-const SALE_STATUS_LABEL: Record<SaleSummary['status'], string> = {
-  DRAFT: 'খসড়া',
-  COMPLETED: 'সম্পন্ন',
-  CANCELLED: 'বাতিল',
-}
-
-const SALE_STATUS_CLASS: Record<SaleSummary['status'], string> = {
-  DRAFT: 'pending',
-  COMPLETED: 'in-stock',
-  CANCELLED: 'out-of-stock',
-}
-
-const PAYMENT_LABEL: Record<SaleSummary['paymentStatus'], string> = {
-  PAID: 'পরিশোধিত',
-  PARTIALLY_PAID: 'আংশিক',
-  UNPAID: 'বাকি',
-}
-
-const numberFormat = new Intl.NumberFormat('en-IN')
-
-function taka(value: number): string {
-  return `৳ ${numberFormat.format(value)}`
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString('en-GB')
-}
-
 const inputClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900'
-
-const buttonClass =
-  'rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40'
 
 export function CustomersPage({ canManage }: { canManage: boolean }) {
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -99,7 +47,7 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
   const [form, setForm] = useState<{ customer: Customer | null } | null>(null)
   const [details, setDetails] = useState<Customer | null>(null)
 
-  // খোঁজার লেখা লেখা শেষ হওয়ার ৩০০ মিলিসেকেন্ড পরে অনুসন্ধান শুরু হয়
+  // Start searching 300 milliseconds after the user stops typing
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search)
@@ -121,7 +69,7 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
       setTotal(response.total ?? response.data.length)
       setTotalPages(Math.max(response.totalPages ?? 1, 1))
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'গ্রাহকের তালিকা আনা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not load the customer list.')
     } finally {
       setLoading(false)
     }
@@ -132,8 +80,8 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
   }, [loadCustomers])
 
   async function toggleActive(customer: Customer) {
-    const action = customer.isActive ? 'বন্ধ' : 'চালু'
-    if (!window.confirm(`"${customer.name}" গ্রাহককে ${action} করতে চান?`)) return
+    const action = customer.isActive ? 'deactivate' : 'activate'
+    if (!window.confirm(`Are you sure you want to ${action} customer "${customer.name}"?`)) return
 
     setError('')
     setNotice('')
@@ -144,10 +92,10 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
         method: 'PATCH',
         body: { isActive: !customer.isActive },
       })
-      setNotice(`গ্রাহককে ${action} করা হয়েছে।`)
+      setNotice(customer.isActive ? 'Customer deactivated.' : 'Customer activated.')
       loadCustomers()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'পরিবর্তন সংরক্ষণ করা যায়নি।')
+      setError(err instanceof ApiError ? err.message : 'Could not save the change.')
     } finally {
       setBusyId(null)
     }
@@ -158,24 +106,24 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Workspace / Customers</p>
-          <h1>গ্রাহক</h1>
-          <p className="subheading">গ্রাহকের তালিকা, যোগাযোগের তথ্য ও বাকির হিসাব।</p>
+          <h1>Customers</h1>
+          <p className="subheading">Customer list, contact details and outstanding balances.</p>
         </div>
         <button className="primary-button" onClick={() => setForm({ customer: null })}>
-          <Plus /> নতুন গ্রাহক
+          <Plus /> New customer
         </button>
       </div>
 
       <section className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-title">
-            <h2>গ্রাহকের তালিকা</h2>
-            <span>মোট {total} জন</span>
+            <h2>Customer list</h2>
+            <span>Total {total}</span>
           </div>
           <div className="toolbar-actions">
             <input
               className={inputClass + ' max-w-xs'}
-              placeholder="নাম, ফোন বা ইমেইল খুঁজুন..."
+              placeholder="Search by name, phone or email..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -189,16 +137,16 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
           <table>
             <thead>
               <tr>
-                <th>নাম</th>
-                <th>ফোন</th>
-                <th>ইমেইল</th>
-                <th>অবস্থা</th>
-                <th>কাজ</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5}>লোড হচ্ছে...</td></tr>}
-              {!loading && customers.length === 0 && <tr><td colSpan={5}>কোনো গ্রাহক পাওয়া যায়নি।</td></tr>}
+              {loading && <tr><td colSpan={5}>Loading...</td></tr>}
+              {!loading && customers.length === 0 && <tr><td colSpan={5}>No customers found.</td></tr>}
               {!loading && customers.map((customer) => (
                 <tr key={customer._id}>
                   <td><strong>{customer.name}</strong></td>
@@ -206,23 +154,23 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
                   <td>{customer.email || '—'}</td>
                   <td>
                     <span className={`status ${customer.isActive ? 'in-stock' : 'out-of-stock'}`}>
-                      {customer.isActive ? 'সক্রিয়' : 'বন্ধ'}
+                      {customer.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
-                      <button className={rowAction.view} onClick={() => setDetails(customer)}>বিস্তারিত</button>
+                      <button className={rowAction.view} onClick={() => setDetails(customer)}>Details</button>
                       {canManage && (
                         <>
                           <button className={rowAction.edit} onClick={() => setForm({ customer })}>
-                            <Pencil className="inline size-3" /> সম্পাদনা
+                            <Pencil className="inline size-3" /> Edit
                           </button>
                           <button
                             className={customer.isActive ? rowAction.danger : rowAction.success}
                             disabled={busyId === customer._id}
                             onClick={() => toggleActive(customer)}
                           >
-                            <Power className="inline size-3" /> {customer.isActive ? 'বন্ধ' : 'চালু'}
+                            <Power className="inline size-3" /> {customer.isActive ? 'Deactivate' : 'Activate'}
                           </button>
                         </>
                       )}
@@ -235,13 +183,13 @@ export function CustomersPage({ canManage }: { canManage: boolean }) {
         </div>
 
         <div className="flex items-center justify-between px-4 py-3 text-sm">
-          <span>পৃষ্ঠা {page} / {totalPages}</span>
+          <span>Page {page} / {totalPages}</span>
           <div className="flex gap-2">
             <button className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>
-              আগের
+              Previous
             </button>
             <button className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40" disabled={page >= totalPages || loading} onClick={() => setPage((current) => current + 1)}>
-              পরের
+              Next
             </button>
           </div>
         </div>
@@ -278,16 +226,14 @@ function ModalShell({
   title,
   onClose,
   children,
-  wide = false,
 }: {
   title: string
   onClose: () => void
   children: ReactNode
-  wide?: boolean
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className={`max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} space-y-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl`}>
+      <div className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-500">
@@ -344,13 +290,13 @@ function CustomerModal({
     setFormError('')
 
     if (!form.name.trim()) {
-      setFormError('গ্রাহকের নাম লিখুন।')
+      setFormError('Enter the customer name.')
       return
     }
 
     const email = form.email.trim()
     if (email && !/^\S+@\S+\.\S+$/.test(email)) {
-      setFormError('ইমেইল সঠিক ফরম্যাটে লিখুন, যেমন name@example.com।')
+      setFormError('Enter the email in a valid format, for example name@example.com.')
       return
     }
 
@@ -366,35 +312,35 @@ function CustomerModal({
     try {
       if (customer) {
         await apiRequest(`/customers/${customer._id}`, { method: 'PATCH', body: payload })
-        onSaved('গ্রাহকের তথ্য হালনাগাদ করা হয়েছে।')
+        onSaved('Customer updated.')
       } else {
         await apiRequest('/customers', { method: 'POST', body: payload })
-        onSaved('নতুন গ্রাহক যোগ করা হয়েছে।')
+        onSaved('New customer added.')
       }
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।')
+      setFormError(err instanceof ApiError ? err.message : 'Could not save. Please try again.')
       setSaving(false)
     }
   }
 
   return (
-    <ModalShell title={customer ? 'গ্রাহক সম্পাদনা' : 'নতুন গ্রাহক'} onClose={onClose}>
+    <ModalShell title={customer ? 'Edit customer' : 'New customer'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="নাম *">
+        <Field label="Name *">
           <input className={inputClass} value={form.name} onChange={setField('name')} />
         </Field>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="ফোন">
+          <Field label="Phone">
             <input className={inputClass} value={form.phone} onChange={setField('phone')} />
           </Field>
-          <Field label="ইমেইল (ঐচ্ছিক)">
+          <Field label="Email (optional)">
             <input type="email" className={inputClass} value={form.email} onChange={setField('email')} />
           </Field>
         </div>
-        <Field label="ঠিকানা (ঐচ্ছিক)">
+        <Field label="Address (optional)">
           <input className={inputClass} value={form.address} onChange={setField('address')} />
         </Field>
-        <Field label="মন্তব্য (ঐচ্ছিক)">
+        <Field label="Notes (optional)">
           <textarea className={inputClass} rows={2} value={form.notes} onChange={setField('notes')} />
         </Field>
 
@@ -402,119 +348,13 @@ function CustomerModal({
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
-            বাতিল
+            Cancel
           </button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+            {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </form>
-    </ModalShell>
-  )
-}
-
-function CustomerDetailModal({
-  customer,
-  canManage,
-  onClose,
-  onEdit,
-}: {
-  customer: Customer
-  canManage: boolean
-  onClose: () => void
-  onEdit: () => void
-}) {
-  const [sales, setSales] = useState<SaleSummary[]>([])
-  const [loadingSales, setLoadingSales] = useState(true)
-  const [salesError, setSalesError] = useState('')
-
-  useEffect(() => {
-    apiRequest<SalesResponse>(`/sales?customer=${customer._id}&limit=100`)
-      .then((response) => setSales(response.data))
-      .catch((err) => setSalesError(err instanceof ApiError ? err.message : 'বিক্রির তথ্য আনা যায়নি।'))
-      .finally(() => setLoadingSales(false))
-  }, [customer._id])
-
-  // হিসাব শুধু সম্পন্ন বিক্রি থেকে। খসড়া ও বাতিল বিক্রি বাদ যায়
-  const completed = sales.filter((sale) => sale.status === 'COMPLETED')
-  const totalPurchased = completed.reduce((sum, sale) => sum + sale.grandTotal, 0)
-  const totalOutstanding = completed.reduce((sum, sale) => sum + sale.outstandingAmount, 0)
-
-  return (
-    <ModalShell title={customer.name} onClose={onClose} wide>
-      <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-        <p><span className="text-gray-500">ফোন: </span>{customer.phone || '—'}</p>
-        <p><span className="text-gray-500">ইমেইল: </span>{customer.email || '—'}</p>
-        <p><span className="text-gray-500">ঠিকানা: </span>{customer.address || '—'}</p>
-        <p><span className="text-gray-500">অবস্থা: </span>{customer.isActive ? 'সক্রিয়' : 'বন্ধ'}</p>
-        {customer.notes && <p className="md:col-span-2"><span className="text-gray-500">মন্তব্য: </span>{customer.notes}</p>}
-      </div>
-
-      <div className="grid grid-cols-3 gap-3 text-center text-sm">
-        <div className="rounded-md bg-gray-50 p-3">
-          <p className="text-gray-500">সম্পন্ন বিক্রি</p>
-          <strong>{completed.length} টি</strong>
-        </div>
-        <div className="rounded-md bg-gray-50 p-3">
-          <p className="text-gray-500">মোট কেনা</p>
-          <strong>{taka(totalPurchased)}</strong>
-        </div>
-        <div className="rounded-md bg-gray-50 p-3">
-          <p className="text-gray-500">মোট বাকি</p>
-          <strong className={totalOutstanding > 0 ? 'text-red-600' : ''}>{taka(totalOutstanding)}</strong>
-        </div>
-      </div>
-
-      <p className="text-xs text-gray-500">সর্বশেষ ১০০টি বিক্রির ভিত্তিতে হিসাব।</p>
-
-      {loadingSales && <p className="text-sm text-gray-500">বিক্রির তথ্য লোড হচ্ছে...</p>}
-      {salesError && <p className="text-sm text-red-600">{salesError}</p>}
-
-      {!loadingSales && !salesError && (
-        sales.length === 0 ? (
-          <p className="text-sm text-gray-500">এই গ্রাহকের কোনো বিক্রি নেই।</p>
-        ) : (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>বিক্রি নম্বর</th>
-                  <th>তারিখ</th>
-                  <th>মোট</th>
-                  <th>বাকি</th>
-                  <th>অবস্থা</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((sale) => (
-                  <tr key={sale._id}>
-                    <td><strong className="ref-code">{sale.saleNumber}</strong></td>
-                    <td>{formatDate(sale.saleDate)}</td>
-                    <td>{taka(sale.grandTotal)}</td>
-                    <td>{sale.status === 'COMPLETED' ? taka(sale.outstandingAmount) : '—'}</td>
-                    <td>
-                      <div className="flex flex-col gap-1">
-                        <span className={`status ${SALE_STATUS_CLASS[sale.status]}`}>{SALE_STATUS_LABEL[sale.status]}</span>
-                        {sale.status === 'COMPLETED' && (
-                          <span className="text-xs text-gray-500">{PAYMENT_LABEL[sale.paymentStatus]}</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )
-      )}
-
-      {canManage && (
-        <div className="flex justify-end">
-          <button type="button" onClick={onEdit} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
-            সম্পাদনা করুন
-          </button>
-        </div>
-      )}
     </ModalShell>
   )
 }
