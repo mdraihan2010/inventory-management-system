@@ -15,7 +15,7 @@ router.get("/", protect, managersOnly, getPurchases);
 router.post("/", protect, managersOnly, createPurchase);
 router.get("/:id", protect, managersOnly, getPurchaseById);
 
-// নতুন: চালান সম্পন্ন ও বাতিল
+// New: complete and cancel a purchase
 router.post("/:id/complete", protect, managersOnly, completePurchase);
 router.post("/:id/cancel", protect, managersOnly, cancelPurchase);
 

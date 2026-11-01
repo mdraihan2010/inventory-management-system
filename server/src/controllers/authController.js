@@ -25,7 +25,7 @@ export async function login(req, res) {
       });
     }
 
-    // passwordHash স্বাভাবিকভাবে লুকানো থাকে, তাই এখানে আলাদা করে আনতে হবে
+    // passwordHash is hidden by default, so it must be selected explicitly here
     const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+passwordHash");
 
     if (!user) {
@@ -68,7 +68,7 @@ export async function login(req, res) {
   }
 }
 
-// Login করা user-এর নিজের তথ্য দেখায়
+// Returns the details of the logged-in user
 export async function getMe(req, res) {
   res.status(200).json({
     success: true,

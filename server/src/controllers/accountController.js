@@ -9,7 +9,7 @@ function normaliseEmail(value) {
   return typeof value === "string" ? value.toLowerCase().trim() : "";
 }
 
-// নিজের email বদলানো। বর্তমান password লাগবে, যাতে অন্য কেউ এসে email না বদলাতে পারে
+// Change own email. The current password is required so that nobody else can change it
 export async function changeOwnEmail(req, res) {
   try {
     const body = req.body || {};
@@ -62,7 +62,7 @@ export async function changeOwnEmail(req, res) {
   }
 }
 
-// Administrator অন্য ব্যবহারকারীর নাম বা email বদলাবে
+// Administrator changes another user's name or email
 export async function updateUserProfile(req, res) {
   const { id } = req.params;
 
@@ -125,7 +125,7 @@ export async function updateUserProfile(req, res) {
   }
 }
 
-// Administrator অস্থায়ী password বসাবে। ব্যবহারকারী পরের login-এ নিজে বদলাতে বাধ্য হবে
+// Administrator sets a temporary password. The user must change it at the next login
 export async function resetUserPassword(req, res) {
   const { id } = req.params;
 
@@ -155,7 +155,7 @@ export async function resetUserPassword(req, res) {
     user.mustChangePassword = true;
     await user.save();
 
-    // পাসওয়ার্ডের মান রেকর্ডে যায় না, শুধু ঘটনাটি
+    // The password value is not stored in the record, only the event
     await logAudit({
       userId: req.user._id,
       action: "CHANGE_PASSWORD",

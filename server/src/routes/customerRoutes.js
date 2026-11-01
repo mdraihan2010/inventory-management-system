@@ -4,13 +4,13 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// সবাই দেখতে পারবে
+// Everyone can view
 router.get("/", protect, getCustomers);
 
-// Staff নতুন customer যোগ করতে পারবে, কারণ বিক্রির সময় এটা দরকার
+// Staff can add a new customer, because it is needed during a sale
 router.post("/", protect, authorize("ADMINISTRATOR", "MANAGER", "STAFF"), createCustomer);
 
-// তথ্য বদলানো শুধু Manager ও Administrator-এর কাজ
+// Only Manager and Administrator can change customer details
 router.patch("/:id", protect, authorize("ADMINISTRATOR", "MANAGER"), updateCustomer);
 
 export default router;

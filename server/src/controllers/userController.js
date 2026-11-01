@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import User, { ROLES } from "../models/User.js";
 import { logAudit } from "../utils/auditLogger.js";
 
-// GET /api/v1/users: সব user, passwordHash ছাড়া
+// GET /api/v1/users: all users, without passwordHash
 export async function getUsers(req, res) {
   try {
     const users = await User.find().sort({ name: 1 });
@@ -14,7 +14,7 @@ export async function getUsers(req, res) {
   }
 }
 
-// POST /api/v1/users: নতুন user, Administrator তৈরি করে
+// POST /api/v1/users: creates a new user (done by an Administrator)
 export async function createUser(req, res) {
   try {
     const body = req.body || {};
@@ -64,7 +64,7 @@ export async function createUser(req, res) {
   }
 }
 
-// PATCH /api/v1/users/:id: role বা active অবস্থা বদলানো
+// PATCH /api/v1/users/:id: changes role or active status
 export async function updateUser(req, res) {
   try {
     const { id } = req.params;
@@ -129,7 +129,7 @@ export async function updateUser(req, res) {
   }
 }
 
-// POST /api/v1/users/change-password: নিজের password বদলানো
+// POST /api/v1/users/change-password: changes own password
 export async function changePassword(req, res) {
   try {
     const body = req.body || {};
@@ -155,7 +155,7 @@ export async function changePassword(req, res) {
     user.mustChangePassword = false;
     await user.save();
 
-    // পাসওয়ার্ডের মান নয়, শুধু ঘটনাটি রেকর্ড হয়
+    // Only the event is recorded, not the password value
     await logAudit({
       userId: req.user._id,
       action: "CHANGE_PASSWORD",

@@ -261,7 +261,7 @@ export async function createCustomerReturn(req, res) {
   }
 }
 
-// Return list, with pagination। গ্রাহক, সরবরাহকারী, বিক্রি ও ক্রয়ের নাম সহ
+// Return list, with pagination. Includes customer, supplier, sale and purchase names
 export async function getReturns(req, res) {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));

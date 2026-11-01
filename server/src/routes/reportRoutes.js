@@ -9,7 +9,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Reports শুধু Manager ও Administrator দেখবে
+// Only Manager and Administrator can view reports
 const managersOnly = authorize("ADMINISTRATOR", "MANAGER");
 
 router.get("/sales", protect, managersOnly, salesReport);

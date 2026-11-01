@@ -1,5 +1,6 @@
 ﻿import mongoose from "mongoose";
 import Customer from "../models/Customer.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -40,6 +41,14 @@ export async function createCustomer(req, res) {
       email: body.email,
       address: body.address,
       notes: body.notes,
+    });
+
+    await logAudit({
+      userId: req.user._id,
+      action: "CREATE",
+      entityType: "Customer",
+      entityId: customer._id,
+      summary: `Created customer ${customer.name}`,
     });
 
     res.status(201).json({ success: true, message: "Customer created", data: customer });
@@ -84,6 +93,14 @@ export async function updateCustomer(req, res) {
     if (!customer) {
       return res.status(404).json({ success: false, message: "Customer not found" });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "UPDATE",
+      entityType: "Customer",
+      entityId: customer._id,
+      summary: `Updated customer ${customer.name}`,
+    });
 
     res.status(200).json({ success: true, message: "Customer updated", data: customer });
   } catch (error) {

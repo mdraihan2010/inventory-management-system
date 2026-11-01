@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequestAll } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
 
 export type Supplier = {
@@ -25,7 +25,6 @@ export type PurchaseSummary = {
   supplier: string | { _id: string; name?: string } | null
 }
 
-type PurchasesResponse = { success: boolean; data: PurchaseSummary[] }
 
 const PURCHASE_STATUS_LABEL: Record<PurchaseSummary['status'], string> = {
   DRAFT: 'Draft',
@@ -44,11 +43,6 @@ function formatDate(value?: string): string {
 }
 
 // A purchase's supplier is sometimes only an id, and sometimes a populated object
-export function supplierIdOf(purchase: PurchaseSummary): string | null {
-  if (!purchase.supplier) return null
-  return typeof purchase.supplier === 'string' ? purchase.supplier : purchase.supplier._id
-}
-
 function ModalShell({
   title,
   onClose,
@@ -91,9 +85,9 @@ export function SupplierDetailModal({
   const [purchaseError, setPurchaseError] = useState('')
 
   useEffect(() => {
-    apiRequest<PurchasesResponse>('/purchases?limit=100')
-      .then((response) => {
-        setPurchases(response.data.filter((purchase) => supplierIdOf(purchase) === supplier._id))
+    apiRequestAll<PurchaseSummary>(`/purchases?supplier=${supplier._id}`)
+      .then((allPurchases) => {
+        setPurchases(allPurchases)
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 403) {

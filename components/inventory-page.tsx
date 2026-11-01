@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
 import { rowAction } from '@/components/ui/row-action'
 import { AdjustModal } from '@/components/inventory-modals'
 import {
@@ -17,7 +17,6 @@ import {
   type StockState,
 } from '@/components/inventory-shared'
 
-type ProductsResponse = { success: boolean; total: number; data: ProductRow[] }
 type MovementsResponse = { success: boolean; count: number; data: Movement[] }
 
 export function InventoryPage({ canManage }: { canManage: boolean }) {
@@ -37,8 +36,8 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
     setLoadingProducts(true)
     setProductError('')
     try {
-      const response = await apiRequest<ProductsResponse>('/products?isActive=true&limit=100')
-      setProducts(response.data)
+      const allProducts = await apiRequestAll<ProductRow>('/products?isActive=true')
+      setProducts(allProducts)
     } catch (err) {
       setProductError(err instanceof ApiError ? err.message : 'Could not load the product list.')
     } finally {

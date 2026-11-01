@@ -4,10 +4,10 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Login করা যে কেউ দেখতে পারবে
+// Any logged-in user can view
 router.get("/", protect, getCategories);
 
-// শুধু Manager ও Administrator তৈরি ও বদলাতে পারবে
+// Only Manager and Administrator can create and change
 router.post("/", protect, authorize("ADMINISTRATOR", "MANAGER"), createCategory);
 router.patch("/:id", protect, authorize("ADMINISTRATOR", "MANAGER"), updateCategory);
 

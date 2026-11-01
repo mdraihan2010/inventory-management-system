@@ -13,7 +13,7 @@ function httpError(status, message) {
   return error;
 }
 
-// POST /api/v1/sales/:id/payments: একটা বিক্রিতে নতুন পরিশোধ যোগ করা
+// POST /api/v1/sales/:id/payments: adds a new payment to one sale
 export async function addPayment(req, res) {
   const { id } = req.params;
 
@@ -93,7 +93,7 @@ export async function addPayment(req, res) {
       result = { sale, payment };
     });
 
-    // আর্থিক সিদ্ধান্ত: transaction সফল হওয়ার পরে রেকর্ড
+    // Money-related rule: the audit record is written only after the transaction succeeds
     await logAudit({
       userId: req.user._id,
       action: "PAYMENT",
@@ -121,7 +121,7 @@ export async function addPayment(req, res) {
   }
 }
 
-// GET /api/v1/sales/:id/payments: একটা বিক্রির সব পরিশোধ
+// GET /api/v1/sales/:id/payments: all payments for one sale
 export async function getSalePayments(req, res) {
   try {
     const { id } = req.params;
@@ -148,7 +148,7 @@ export async function getSalePayments(req, res) {
   }
 }
 
-// GET /api/v1/payments: সব পরিশোধ, নতুনটা আগে
+// GET /api/v1/payments: all payments, newest first
 export async function getAllPayments(req, res) {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);

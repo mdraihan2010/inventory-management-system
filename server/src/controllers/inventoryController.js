@@ -49,33 +49,47 @@ export async function adjustStock(req, res) {
       filter.currentStock = { $gte: quantity };
     }
 
-    const product = await Product.findOneAndUpdate(
-      filter,
-      { $inc: { currentStock: change } },
-      { new: true }
-    );
+    const session = await mongoose.startSession();
+    let product;
+    let movement;
 
-    if (!product) {
-      // If the product is missing, report that separately as the reason
-      const exists = await Product.exists({ _id: productId });
-      if (!exists) {
-        return res.status(404).json({ success: false, message: "Product not found" });
-      }
-      return res.status(409).json({ success: false, message: "Not enough stock available" });
+    try {
+      await session.withTransaction(async () => {
+        product = await Product.findOneAndUpdate(
+          filter,
+          { $inc: { currentStock: change } },
+          { new: true, session }
+        );
+
+        if (!product) {
+          // If the product is missing, report that separately as the reason
+          const exists = await Product.exists({ _id: productId }).session(session);
+          if (!exists) {
+            throw Object.assign(new Error("Product not found"), { status: 404 });
+          }
+          throw Object.assign(new Error("Not enough stock available"), { status: 409 });
+        }
+
+        const resultingStock = product.currentStock;
+        const previousStock = resultingStock - change;
+
+        // The stock change and its history record are saved together, or not at all
+        [movement] = await StockMovement.create(
+          [{
+            product: productId,
+            type,
+            change,
+            previousStock,
+            resultingStock,
+            reason: reason || "",
+            createdBy: req.user._id,
+          }],
+          { session }
+        );
+      });
+    } finally {
+      await session.endSession();
     }
-
-    const resultingStock = product.currentStock;
-    const previousStock = resultingStock - change;
-
-    const movement = await StockMovement.create({
-      product: productId,
-      type,
-      change,
-      previousStock,
-      resultingStock,
-      reason: reason || "",
-      createdBy: req.user._id,
-    });
 
     res.status(201).json({
       success: true,
@@ -86,6 +100,9 @@ export async function adjustStock(req, res) {
       },
     });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     if (error.name === "ValidationError") {
       return res.status(400).json({ success: false, message: error.message });
     }

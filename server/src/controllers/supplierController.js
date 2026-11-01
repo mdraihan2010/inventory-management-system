@@ -1,5 +1,6 @@
 ﻿import mongoose from "mongoose";
 import Supplier from "../models/Supplier.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -41,6 +42,14 @@ export async function createSupplier(req, res) {
       email: body.email,
       address: body.address,
       notes: body.notes,
+    });
+
+    await logAudit({
+      userId: req.user._id,
+      action: "CREATE",
+      entityType: "Supplier",
+      entityId: supplier._id,
+      summary: `Created supplier ${supplier.name}`,
     });
 
     res.status(201).json({ success: true, message: "Supplier created", data: supplier });
@@ -85,6 +94,14 @@ export async function updateSupplier(req, res) {
     if (!supplier) {
       return res.status(404).json({ success: false, message: "Supplier not found" });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "UPDATE",
+      entityType: "Supplier",
+      entityId: supplier._id,
+      summary: `Updated supplier ${supplier.name}`,
+    });
 
     res.status(200).json({ success: true, message: "Supplier updated", data: supplier });
   } catch (error) {

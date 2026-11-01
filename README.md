@@ -20,10 +20,12 @@ An inventory, sales and purchase management system. It covers products, stock, s
 - Customer and supplier management
 - Returns: customer returns (balance adjustment and cash refund) and returns to suppliers
 - Reports: sales, purchases, profit and stock value, with a date range
+- Printable sale and purchase invoices (use the Print invoice button in the details)
+- Dashboard chart of completed sales for the last 7 days, with a table view
 - Users and roles: Administrator, Manager and Staff
 - Users can change their own email and password
 - Administrators can edit users, and set a temporary password for a user who forgot theirs
-- Audit log of important changes
+- Audit log of important changes, shown on the Audit Log page (Administrator only)
 - Light and dark mode
 
 ## Roles and permissions
@@ -71,6 +73,15 @@ pnpm dev
 
 Set `MONGO_URI` and `JWT_SECRET` in `.env` to your own values. When the backend is running, opening `http://localhost:5000/api/v1/health` shows a message.
 
+## Run backend tests
+
+```bash
+cd server
+pnpm test
+```
+
+The tests do not need a database. They check the JWT check, the role check, the login rate limit and the stock adjustment validation.
+
 ## Create the first Administrator
 
 From the `server` folder:
@@ -116,7 +127,7 @@ The free Render server sleeps when it is not used. The first request can take 2 
 - Cash refunds do not appear in the payment list. They are shown on the Returns page and in the reports.
 - Payments to suppliers are not tracked yet.
 - Walk-in sales cannot be linked to a person, so their dues cannot be tracked to an individual.
-- Reports use UTC dates. Sales made before 6 AM Bangladesh time may appear on the previous day.
+- The dashboard's "today" uses the browser's time zone. Report date ranges use Bangladesh time (UTC+6).
 - Sign-in is stored per browser tab (`sessionStorage`), so each tab needs its own sign-in.
 
 ## Project structure

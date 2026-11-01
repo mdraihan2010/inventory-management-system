@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CircleDollarSign, Receipt, WalletCards } from 'lucide-react'
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
 
 type Tab = 'payments' | 'dues'
@@ -44,7 +44,6 @@ type SaleRow = {
   customer: { _id: string; name: string; phone?: string } | null
 }
 
-type SalesResponse = { success: boolean; total: number; data: SaleRow[] }
 
 type DueGroup = {
   key: string
@@ -107,7 +106,6 @@ function PaymentsManager() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [sales, setSales] = useState<SaleRow[]>([])
-  const [salesTruncated, setSalesTruncated] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -142,9 +140,8 @@ function PaymentsManager() {
     setLoading(true)
     setError('')
     try {
-      const response = await apiRequest<SalesResponse>('/sales?status=COMPLETED&limit=100')
-      setSales(response.data)
-      setSalesTruncated(response.total > response.data.length)
+      const allSales = await apiRequestAll<SaleRow>('/sales?status=COMPLETED')
+      setSales(allSales)
     } catch (err) {
       setError(errorText(err))
     } finally {
@@ -295,12 +292,6 @@ function PaymentsManager() {
 
         {tab === 'dues' && (
           <>
-            {salesTruncated && (
-              <p className="px-4 pb-3 text-xs text-amber-700">
-                This list is based on the latest 100 completed sales.
-              </p>
-            )}
-
             <div className="table-scroll">
               <table>
                 <thead>

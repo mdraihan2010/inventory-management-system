@@ -1,5 +1,6 @@
 ﻿import mongoose from "mongoose";
 import Brand from "../models/Brand.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 export async function getBrands(req, res) {
   try {
@@ -21,6 +22,14 @@ export async function createBrand(req, res) {
     }
 
     const brand = await Brand.create({ name, description });
+    await logAudit({
+      userId: req.user._id,
+      action: "CREATE",
+      entityType: "Brand",
+      entityId: brand._id,
+      summary: `Created brand ${brand.name}`,
+    });
+
     res.status(201).json({ success: true, message: "Brand created", data: brand });
   } catch (error) {
     if (error.code === 11000) {
@@ -53,6 +62,14 @@ export async function updateBrand(req, res) {
     if (!brand) {
       return res.status(404).json({ success: false, message: "Brand not found" });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "UPDATE",
+      entityType: "Brand",
+      entityId: brand._id,
+      summary: `Updated brand ${brand.name}`,
+    });
 
     res.status(200).json({ success: true, message: "Brand updated", data: brand });
   } catch (error) {

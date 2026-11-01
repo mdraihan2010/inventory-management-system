@@ -10,10 +10,10 @@ const router = express.Router();
 
 const adminOnly = authorize("ADMINISTRATOR");
 
-// যে কেউ নিজের email বদলাতে পারবে
+// Any logged-in user can change their own email
 router.post("/change-email", protect, changeOwnEmail);
 
-// শুধু Administrator অন্যদের নাম, email বা অস্থায়ী password বদলাবে
+// Only Administrator can change others' name, email or temporary password
 router.patch("/:id/profile", protect, adminOnly, updateUserProfile);
 router.post("/:id/reset-password", protect, adminOnly, resetUserPassword);
 

@@ -70,3 +70,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return data as T
 }
 
+// Loads every page of a list endpoint (products, sales, purchases) and joins them together.
+// The server returns at most 100 records per request, so each page is requested in turn
+export async function apiRequestAll<T>(path: string): Promise<T[]> {
+  const separator = path.includes('?') ? '&' : '?'
+  const rows: T[] = []
+  let page = 1
+  let totalPages = 1
+
+  do {
+    const response = await apiRequest<{ data: T[]; totalPages?: number }>(
+      `${path}${separator}page=${page}&limit=100`
+    )
+    rows.push(...response.data)
+    totalPages = response.totalPages ?? 1
+    page += 1
+  } while (page <= totalPages)
+
+  return rows
+}

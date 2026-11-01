@@ -15,6 +15,7 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
+  ScrollText,
   Settings,
   ShoppingCart,
   Tags,
@@ -35,10 +36,12 @@ import { UsersPage } from '@/components/users-page'
 import { ReportsPage } from '@/components/reports-page'
 import { PaymentsPage } from '@/components/payments-page'
 import { ReturnsPage } from '@/components/returns-page'
+import { SalesTrendChart, type TrendPoint } from '@/components/sales-trend-chart'
+import { AuditPage } from '@/components/audit-page'
 import { AccountSettingsModal } from '@/components/account-settings'
 import { ThemeToggle } from '@/components/theme-toggle'
 
-type PageKey = 'Dashboard' | 'Products' | 'Categories' | 'Brands' | 'Inventory' | 'Purchases' | 'Sales' | 'Customers' | 'Suppliers' | 'Returns' | 'Payments & Dues' | 'Reports' | 'User Management'
+type PageKey = 'Dashboard' | 'Products' | 'Categories' | 'Brands' | 'Inventory' | 'Purchases' | 'Sales' | 'Customers' | 'Suppliers' | 'Returns' | 'Payments & Dues' | 'Reports' | 'User Management' | 'Audit Log'
 
 type IconType = typeof LayoutDashboard
 
@@ -56,6 +59,7 @@ const navigation: { label: PageKey; icon: IconType; group: string }[] = [
   { label: 'Payments & Dues', icon: WalletCards, group: 'Finance' },
   { label: 'Reports', icon: BarChart3, group: 'Finance' },
   { label: 'User Management', icon: Settings, group: 'System' },
+  { label: 'Audit Log', icon: ScrollText, group: 'System' },
 ]
 
 const ROLE_LABEL: Record<string, string> = {
@@ -85,6 +89,7 @@ type SaleRow = {
 }
 
 type DashboardData = {
+  trend: TrendPoint[]
   totalProducts: number | null
   today: SalesReport | null
   month: SalesReport | null
@@ -111,6 +116,13 @@ const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }
 function taka(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—'
   return `$${numberFormat.format(value)}`
+}
+
+// The date N days before today, as YYYY-MM-DD in local time
+function dateDaysAgo(days: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 function pad(value: number): string {
@@ -143,7 +155,18 @@ async function loadDashboard(): Promise<DashboardData> {
       apiRequest<{ data: SaleRow[] }>('/sales?limit=5'),
     ])
 
+  // One report per day for the last 7 days (oldest first)
+  const trendDays = [6, 5, 4, 3, 2, 1, 0].map(dateDaysAgo)
+  const trendRes = await Promise.allSettled(
+    trendDays.map((day) => apiRequest<ReportResponse<SalesReport>>(`/reports/sales?from=${day}&to=${day}`))
+  )
+  const trend: TrendPoint[] = trendDays.map((date, index) => {
+    const result = trendRes[index]
+    return { date, total: result.status === 'fulfilled' ? result.value.data.totalSales : null }
+  })
+
   return {
+    trend,
     totalProducts: productsRes.status === 'fulfilled' ? productsRes.value.total : null,
     today: todayRes.status === 'fulfilled' ? todayRes.value.data : null,
     month: monthRes.status === 'fulfilled' ? monthRes.value.data : null,
@@ -210,6 +233,8 @@ function App() {
         return <ReportsPage canManage={canManage} />
       case 'User Management':
         return <UsersPage isAdmin={isAdmin} />
+      case 'Audit Log':
+        return <AuditPage isAdmin={isAdmin} />
       case 'Returns':
         return <ReturnsPage canManage={canManage} />
       default:
@@ -372,6 +397,18 @@ function Dashboard({ onNavigate, userName }: { onNavigate: (page: PageKey) => vo
             </div>
           </article>
         ))}
+      </section>
+
+      <section className="panel mb-[17px]">
+        <div className="panel-heading">
+          <div>
+            <h2>Sales, last 7 days</h2>
+            <p>Total of completed sales per day, after returns</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <SalesTrendChart points={data?.trend ?? []} loading={loading} />
+        </div>
       </section>
 
       <section className="dashboard-grid">

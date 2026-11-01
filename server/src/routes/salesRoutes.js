@@ -20,7 +20,7 @@ router.get("/:id", protect, anyStaff, getSaleById);
 router.post("/:id/complete", protect, anyStaff, completeSale);
 router.post("/:id/cancel", protect, managersOnly, cancelSale);
 
-// পরিশোধ: Staff-ও নিতে পারবে, কারণ বিক্রির সময় টাকা নেওয়া হয়
+// Payment: Staff can also take it, because money is collected during a sale
 router.post("/:id/payments", protect, anyStaff, addPayment);
 router.get("/:id/payments", protect, anyStaff, getSalePayments);
 

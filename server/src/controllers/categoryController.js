@@ -1,7 +1,8 @@
 ﻿import mongoose from "mongoose";
 import Category from "../models/Category.js";
+import { logAudit } from "../utils/auditLogger.js";
 
-// সব category দেখায়, নাম অনুযায়ী সাজানো
+// Returns all categories, sorted by name
 export async function getCategories(req, res) {
   try {
     const categories = await Category.find().sort({ name: 1 });
@@ -17,10 +18,10 @@ export async function getCategories(req, res) {
   }
 }
 
-// নতুন category তৈরি করে
+// Creates a new category
 export async function createCategory(req, res) {
   try {
-    // Express 5-এ body না থাকলে req.body undefined হয়, তাই এই সুরক্ষা
+    // In Express 5, req.body is undefined when there is no body, so this guard is needed
     const body = req.body || {};
     const { name, description } = body;
 
@@ -29,6 +30,14 @@ export async function createCategory(req, res) {
     }
 
     const category = await Category.create({ name, description });
+
+    await logAudit({
+      userId: req.user._id,
+      action: "CREATE",
+      entityType: "Category",
+      entityId: category._id,
+      summary: `Created category ${category.name}`,
+    });
 
     res.status(201).json({ success: true, message: "Category created", data: category });
   } catch (error) {
@@ -40,7 +49,7 @@ export async function createCategory(req, res) {
   }
 }
 
-// category আপডেট করে, বা বন্ধ/চালু করে
+// Updates a category, or deactivates/activates it
 export async function updateCategory(req, res) {
   try {
     const { id } = req.params;
@@ -51,7 +60,7 @@ export async function updateCategory(req, res) {
 
     const body = req.body || {};
 
-    // শুধু এই তিনটা field বদলানো যাবে, অন্য কিছু নয়
+    // Only these three fields can be changed, nothing else
     const allowed = {};
     if (body.name !== undefined) allowed.name = body.name;
     if (body.description !== undefined) allowed.description = body.description;
@@ -65,6 +74,14 @@ export async function updateCategory(req, res) {
     if (!category) {
       return res.status(404).json({ success: false, message: "Category not found" });
     }
+
+    await logAudit({
+      userId: req.user._id,
+      action: "UPDATE",
+      entityType: "Category",
+      entityId: category._id,
+      summary: `Updated category ${category.name}`,
+    });
 
     res.status(200).json({ success: true, message: "Category updated", data: category });
   } catch (error) {

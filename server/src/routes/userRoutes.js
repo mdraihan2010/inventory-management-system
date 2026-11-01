@@ -11,10 +11,10 @@ const router = express.Router();
 
 const adminOnly = authorize("ADMINISTRATOR");
 
-// যে কোনো login করা user নিজের password বদলাতে পারবে
+// Any logged-in user can change their own password
 router.post("/change-password", protect, changePassword);
 
-// User ব্যবস্থাপনা শুধু Administrator-এর কাজ
+// User management is only for Administrator
 router.get("/", protect, adminOnly, getUsers);
 router.post("/", protect, adminOnly, createUser);
 router.patch("/:id", protect, adminOnly, updateUser);

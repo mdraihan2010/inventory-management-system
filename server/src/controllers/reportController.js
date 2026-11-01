@@ -12,7 +12,7 @@ function dateRange(query) {
   const range = {};
 
   if (query.from) {
-    const from = new Date(`${query.from}T00:00:00.000Z`);
+    const from = new Date(`${query.from}T00:00:00.000+06:00`) // Bangladesh time (UTC+6);
     if (Number.isNaN(from.getTime())) {
       throw Object.assign(new Error("Invalid from date. Use YYYY-MM-DD"), { status: 400 });
     }
@@ -20,7 +20,7 @@ function dateRange(query) {
   }
 
   if (query.to) {
-    const to = new Date(`${query.to}T23:59:59.999Z`);
+    const to = new Date(`${query.to}T23:59:59.999+06:00`) // Bangladesh time (UTC+6);
     if (Number.isNaN(to.getTime())) {
       throw Object.assign(new Error("Invalid to date. Use YYYY-MM-DD"), { status: 400 });
     }

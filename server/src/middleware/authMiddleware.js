@@ -1,7 +1,7 @@
 ﻿import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// Token আছে কিনা এবং ঠিক কিনা যাচাই করে
+// Checks that the token exists and is valid
 export async function protect(req, res, next) {
   const header = req.headers.authorization;
 
@@ -35,7 +35,7 @@ export async function protect(req, res, next) {
   }
 }
 
-// User-এর role অনুমতি দেয় কিনা যাচাই করে
+// Checks whether the user's role is allowed
 export function authorize(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {

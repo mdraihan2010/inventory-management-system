@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
+import { PrintableInvoice, PrintInvoiceButton } from '@/components/invoice-print'
 import { Button } from '@/components/ui/button'
 import {
   METHOD_LABEL,
@@ -166,6 +167,10 @@ export function SaleDetailModal({
 
   return (
     <ModalShell title={sale.saleNumber} onClose={onClose} wide>
+      <div className="flex justify-end">
+        <PrintInvoiceButton />
+      </div>
+
       <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
         <p><span className="text-gray-500">Customer: </span>{sale.customer?.name ?? 'Walk-in customer'}</p>
         <p><span className="text-gray-500">Date: </span>{formatDate(sale.saleDate)}</p>
@@ -226,6 +231,27 @@ export function SaleDetailModal({
           </ul>
         )}
       </div>
+      <PrintableInvoice
+        heading="Sale invoice"
+        number={sale.saleNumber}
+        date={sale.saleDate}
+        partyLabel="Customer"
+        partyName={sale.customer?.name ?? 'Walk-in customer'}
+        partyDetail={sale.customer?.phone}
+        status={STATUS_LABEL[sale.status]}
+        lines={sale.items.map((item) => ({
+          name: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineTotal: item.lineTotal,
+        }))}
+        subtotal={sale.subtotal}
+        discount={sale.discount}
+        total={sale.grandTotal}
+        paid={sale.paidAmount}
+        outstanding={sale.outstandingAmount}
+      />
     </ModalShell>
   )
 }

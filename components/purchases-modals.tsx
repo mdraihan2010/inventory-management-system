@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
+import { PrintableInvoice, PrintInvoiceButton } from '@/components/invoice-print'
 import {
   STATUS_LABEL,
   formatDate,
@@ -59,6 +60,10 @@ export function PurchaseDetailModal({
 
   return (
     <ModalShell title={purchase.purchaseNumber} onClose={onClose} wide>
+      <div className="flex justify-end">
+        <PrintInvoiceButton disabled={!detail} />
+      </div>
+
       <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
         <p><span className="text-gray-500">Supplier: </span>{supplierName}</p>
         <p><span className="text-gray-500">Date: </span>{formatDate(purchase.purchaseDate)}</p>
@@ -100,6 +105,27 @@ export function PurchaseDetailModal({
             <div className="flex justify-between font-semibold"><span>Total bill</span><span>{formatMoney(detail.grandTotal)}</span></div>
           </div>
         </>
+      )}
+      {detail && (
+        <PrintableInvoice
+          heading="Purchase invoice"
+          number={purchase.purchaseNumber}
+          date={purchase.purchaseDate}
+          partyLabel="Supplier"
+          partyName={supplierName}
+          status={STATUS_LABEL[purchase.status]}
+          lines={detail.items.map((item) => ({
+            name: item.productName,
+            sku: item.sku,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            lineTotal: item.lineTotal,
+          }))}
+          subtotal={detail.subtotal}
+          discount={detail.discount}
+          total={detail.grandTotal}
+          paid={detail.paidAmount}
+        />
       )}
     </ModalShell>
   )

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Power, X } from 'lucide-react'
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
+import { downloadCsv, todayStamp, toCsv, toLocalDate } from '@/lib/csv'
 import { formatMoney } from '@/lib/money'
 import { Button } from '@/components/ui/button'
 
@@ -79,6 +80,43 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [modal, setModal] = useState<{ product: Product | null } | null>(null)
+  const [exporting, setExporting] = useState(false)
+
+  // Exports every product that matches the current search and filters
+  async function exportProducts() {
+    setError('')
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
+      if (categoryId) params.set('category', categoryId)
+      if (brandId) params.set('brand', brandId)
+      if (activeFilter) params.set('isActive', activeFilter)
+
+      const rows = await apiRequestAll<Product>(`/products?${params.toString()}`)
+      const csv = toCsv(
+        ['Name', 'SKU', 'Barcode', 'Category', 'Brand', 'Unit', 'Purchase price', 'Selling price', 'Current stock', 'Minimum stock', 'Active'],
+        rows.map((product) => [
+          product.name,
+          product.sku,
+          product.barcode ?? '',
+          product.category?.name ?? '',
+          product.brand?.name ?? '',
+          product.unit,
+          product.purchasePrice,
+          product.sellingPrice,
+          product.currentStock,
+          product.minStockLevel,
+          product.isActive ? 'Yes' : 'No',
+        ])
+      )
+      downloadCsv(`products-${todayStamp()}.csv`, csv)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not export the products.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // Start searching 300 milliseconds after the user stops typing
   useEffect(() => {
@@ -170,6 +208,9 @@ export function ProductsPage({ canManage }: { canManage: boolean }) {
             <span>Total {total}</span>
           </div>
           <div className="toolbar-actions">
+            <Button variant="outline" onClick={exportProducts} disabled={exporting}>
+              {exporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
             <input
               className={inputClass + ' max-w-xs'}
               placeholder="Search by name, SKU or barcode..."

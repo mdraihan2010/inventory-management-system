@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import helmet from "helmet";
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
@@ -22,6 +23,14 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Render runs the server behind a proxy. This makes req.ip the real client IP,
+// so the login rate limit counts each user separately
+app.set("trust proxy", 1);
+
+// Security headers. The API is called from another domain (Vercel), so the
+// cross-origin policy is relaxed for the API responses
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 app.use(
   cors({

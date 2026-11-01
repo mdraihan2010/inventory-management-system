@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
 import { Button } from '@/components/ui/button'
 import { rowAction } from '@/components/ui/row-action'
@@ -60,7 +60,7 @@ function PurchasesManager() {
   const [detailRow, setDetailRow] = useState<PurchaseRow | null>(null)
 
   useEffect(() => {
-    apiRequest<ListResponse<SupplierRef>>('/suppliers?limit=100')
+    apiRequest<ListResponse<SupplierRef>>('/suppliers')
       .then((response) => setSuppliers(response.data ?? []))
       .catch(() => setSuppliers([]))
   }, [])
@@ -301,8 +301,8 @@ function NewPurchaseModal({
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    apiRequest<ListResponse<ProductRef>>('/products?isActive=true&limit=100')
-      .then((response) => setProducts(response.data ?? []))
+    apiRequestAll<ProductRef>('/products?isActive=true')
+      .then(setProducts)
       .catch(() => setProducts([]))
   }, [])
 

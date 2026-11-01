@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequestAll } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
 
 export type Customer = {
@@ -25,7 +25,6 @@ export type SaleSummary = {
   paymentStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID'
 }
 
-type SalesResponse = { success: boolean; data: SaleSummary[] }
 
 const SALE_STATUS_LABEL: Record<SaleSummary['status'], string> = {
   DRAFT: 'Draft',
@@ -91,8 +90,8 @@ export function CustomerDetailModal({
   const [salesError, setSalesError] = useState('')
 
   useEffect(() => {
-    apiRequest<SalesResponse>(`/sales?customer=${customer._id}&limit=100`)
-      .then((response) => setSales(response.data))
+    apiRequestAll<SaleSummary>(`/sales?customer=${customer._id}`)
+      .then((allSales) => setSales(allSales))
       .catch((err) => setSalesError(err instanceof ApiError ? err.message : 'Could not load sales.'))
       .finally(() => setLoadingSales(false))
   }, [customer._id])

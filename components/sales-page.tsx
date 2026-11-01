@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
+import { downloadCsv, todayStamp, toCsv, toLocalDate } from '@/lib/csv'
 import { formatMoney } from '@/lib/money'
 import { Button } from '@/components/ui/button'
 import { rowAction } from '@/components/ui/row-action'
@@ -36,9 +37,44 @@ export function SalesPage({ canManage }: { canManage: boolean }) {
   const [creating, setCreating] = useState(false)
   const [detailSale, setDetailSale] = useState<Sale | null>(null)
   const [paySale, setPaySale] = useState<Sale | null>(null)
+  const [exporting, setExporting] = useState(false)
+
+  // Exports every sale that matches the current filters, not only the rows on this page
+  async function exportSales() {
+    setError('')
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter) params.set('status', statusFilter)
+      if (customerFilter) params.set('customer', customerFilter)
+
+      const rows = await apiRequestAll<Sale>(`/sales?${params.toString()}`)
+      const csv = toCsv(
+        ['Sale no', 'Date', 'Customer', 'Phone', 'Status', 'Payment status', 'Subtotal', 'Discount', 'Total', 'Paid', 'Outstanding'],
+        rows.map((sale) => [
+          sale.saleNumber,
+          toLocalDate(sale.saleDate),
+          sale.customer?.name ?? 'Walk-in customer',
+          sale.customer?.phone ?? '',
+          sale.status,
+          sale.paymentStatus,
+          sale.subtotal,
+          sale.discount,
+          sale.grandTotal,
+          sale.paidAmount,
+          sale.outstandingAmount,
+        ])
+      )
+      downloadCsv(`sales-${todayStamp()}.csv`, csv)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not export the sales.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
-    apiRequest<ListResponse<Ref>>('/customers?limit=100')
+    apiRequest<ListResponse<Ref>>('/customers')
       .then((response) => setCustomers(response.data ?? []))
       .catch(() => setCustomers([]))
   }, [])
@@ -113,6 +149,9 @@ export function SalesPage({ canManage }: { canManage: boolean }) {
             <span>Total {total}</span>
           </div>
           <div className="toolbar-actions">
+            <Button variant="outline" onClick={exportSales} disabled={exporting}>
+              {exporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
             <select
               className={inputClass + ' max-w-[10rem] bg-white'}
               value={statusFilter}
@@ -290,8 +329,8 @@ function NewSaleModal({
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    apiRequest<ListResponse<Product>>('/products?isActive=true&limit=100')
-      .then((response) => setProducts(response.data ?? []))
+    apiRequestAll<Product>('/products?isActive=true')
+      .then(setProducts)
       .catch(() => setProducts([]))
   }, [])
 

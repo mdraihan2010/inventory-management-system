@@ -12,16 +12,16 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ফেরতে পণ্য ও স্টক বদলায়, তাই শুধু Manager ও Administrator
+// Returns change products and stock, so only Manager and Administrator can do them
 const managersOnly = authorize("ADMINISTRATOR", "MANAGER");
 
 router.get("/", protect, managersOnly, getReturns);
 
-// গ্রাহকের ফেরত
+// Customer return
 router.get("/sales/:saleId/returnable", protect, managersOnly, getReturnableItems);
 router.post("/customer", protect, managersOnly, createCustomerReturn);
 
-// সরবরাহকারীকে ফেরত
+// Supplier return
 router.get("/purchases/:purchaseId/returnable", protect, managersOnly, getReturnablePurchaseItems);
 router.post("/supplier", protect, managersOnly, createSupplierReturn);
 

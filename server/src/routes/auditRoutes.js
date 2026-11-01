@@ -4,7 +4,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// শুধু Administrator দেখতে পারবে
+// Only Administrator can view this
 router.get("/", protect, authorize("ADMINISTRATOR"), async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);

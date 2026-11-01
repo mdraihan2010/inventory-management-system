@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { X } from 'lucide-react'
-import { apiRequest } from '@/lib/api'
+import { apiRequest, apiRequestAll } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
 import { Button } from '@/components/ui/button'
 import {
@@ -63,12 +63,12 @@ export function NewReturnModal({
     setLoadingSources(true)
     const path =
       kind === 'CUSTOMER'
-        ? '/sales?status=COMPLETED&limit=100'
-        : '/purchases?status=COMPLETED&limit=100'
+        ? '/sales?status=COMPLETED'
+        : '/purchases?status=COMPLETED'
 
-    apiRequest<{ data: (SaleSource | PurchaseSource)[] }>(path)
-      .then((response) => {
-        const completed = response.data.filter((row) => row.status === 'COMPLETED')
+    apiRequestAll<SaleSource | PurchaseSource>(path)
+      .then((rows) => {
+        const completed = rows.filter((row) => row.status === 'COMPLETED')
         setSources(
           kind === 'CUSTOMER'
             ? (completed as SaleSource[]).map(sourceFromSale)
