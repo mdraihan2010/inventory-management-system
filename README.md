@@ -133,6 +133,16 @@ node src/scripts/importCustomers.js "C:\path\to\customers.csv" "admin@example.co
 
 The header is `name,phone,email,address,notes`. Only `name` is required. Customers whose email or phone already exists are skipped.
 
+## Import suppliers from a CSV file
+
+Same as customers, from the `server` folder:
+
+```bash
+node src/scripts/importSuppliers.js "C:\path\to\suppliers.csv" "admin@example.com" --apply
+```
+
+The header is `name,company,phone,email,address,notes`. Only `name` is required. Suppliers whose email or phone already exists are skipped.
+
 ## Deploy
 
 - **Frontend (Vercel):** Add the environment variable `NEXT_PUBLIC_API_BASE_URL`, then redeploy.
