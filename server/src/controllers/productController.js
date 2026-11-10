@@ -54,6 +54,16 @@ export async function getProducts(req, res) {
       filter.isActive = req.query.isActive === "true";
     }
 
+    // Stock status: OUT = no stock, LOW = at or below the minimum, OK = above the minimum
+    if (req.query.stock === "OUT") {
+      filter.currentStock = { $lte: 0 };
+    } else if (req.query.stock === "LOW") {
+      filter.currentStock = { $gt: 0 };
+      filter.$expr = { $lte: ["$currentStock", "$minStockLevel"] };
+    } else if (req.query.stock === "OK") {
+      filter.$expr = { $gt: ["$currentStock", "$minStockLevel"] };
+    }
+
     const [products, total] = await Promise.all([
       Product.find(filter)
         .populate("category", "name")

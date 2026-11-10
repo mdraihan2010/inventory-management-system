@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { ApiError, apiRequest } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { ProductPicker } from '@/components/product-picker'
 import {
   ADJUST_TYPES,
   inputClass,
@@ -28,24 +29,22 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 }
 
 export function AdjustModal({
-  products,
-  initialProductId,
+  initialProduct,
   onClose,
   onSaved,
 }: {
-  products: ProductRow[]
-  initialProductId: string
+  initialProduct: ProductRow | null
   onClose: () => void
   onSaved: (message: string) => void
 }) {
-  const [productId, setProductId] = useState(initialProductId)
+  const [product, setProduct] = useState<ProductRow | null>(initialProduct)
+  const productId = product?._id ?? ''
   const [type, setType] = useState<AdjustType>('DAMAGED')
   const [quantity, setQuantity] = useState('1')
   const [reason, setReason] = useState('')
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const product = products.find((item) => item._id === productId)
   const meta = ADJUST_TYPES.find((item) => item.value === type)
   const qty = Number(quantity)
   const validQty = Number.isInteger(qty) && qty > 0
@@ -97,10 +96,7 @@ export function AdjustModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block space-y-1">
           <span className="text-sm font-medium text-gray-700">Product *</span>
-          <select className={inputClass + ' bg-white'} value={productId} onChange={(event) => setProductId(event.target.value)}>
-            <option value="">Select</option>
-            {products.map((item) => <option key={item._id} value={item._id}>{item.name} ({item.sku})</option>)}
-          </select>
+          <ProductPicker<ProductRow> value={product} onChange={setProduct} />
         </label>
 
         <label className="block space-y-1">

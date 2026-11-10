@@ -1,8 +1,9 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
+import { ApiError, apiRequest } from '@/lib/api'
+import { ProductPicker } from '@/components/product-picker'
 import { rowAction } from '@/components/ui/row-action'
 import { AdjustModal } from '@/components/inventory-modals'
 import {
@@ -18,31 +19,70 @@ import {
 } from '@/components/inventory-shared'
 
 type MovementsResponse = { success: boolean; count: number; data: Movement[] }
+type ProductsResponse = { success: boolean; total: number; page: number; totalPages: number; data: ProductRow[] }
+type AlertsResponse = { outOfStock: { count: number }; lowStock: { count: number } }
+type Stats = { active: number; low: number; out: number }
+
+const PAGE_SIZE = 25
 
 export function InventoryPage({ canManage }: { canManage: boolean }) {
   const [products, setProducts] = useState<ProductRow[]>([])
   const [loadingProducts, setLoadingProducts] = useState(true)
   const [productError, setProductError] = useState('')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [stateFilter, setStateFilter] = useState('')
-  const [selectedId, setSelectedId] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [matching, setMatching] = useState(0)
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null)
   const [movements, setMovements] = useState<Movement[]>([])
   const [loadingMovements, setLoadingMovements] = useState(false)
   const [movementError, setMovementError] = useState('')
   const [notice, setNotice] = useState('')
   const [adjusting, setAdjusting] = useState(false)
+  const selectedId = selectedProduct?._id ?? ''
 
+  // Wait a moment after typing, then search on the server
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setPage(1)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [search])
+
+  // Only one page of products is loaded at a time, so the page stays fast with thousands of products
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true)
     setProductError('')
+    const params = new URLSearchParams({ isActive: 'true', page: String(page), limit: String(PAGE_SIZE) })
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (stateFilter) params.set('stock', stateFilter)
     try {
-      const allProducts = await apiRequestAll<ProductRow>('/products?isActive=true')
-      setProducts(allProducts)
+      const response = await apiRequest<ProductsResponse>(`/products?${params.toString()}`)
+      setProducts(response.data)
+      setMatching(response.total)
+      setTotalPages(Math.max(response.totalPages, 1))
     } catch (err) {
       setProductError(err instanceof ApiError ? err.message : 'Could not load the product list.')
     } finally {
       setLoadingProducts(false)
     }
+  }, [page, debouncedSearch, stateFilter])
+
+  // The counts at the top come from the server, so they cover every product, not only this page
+  const loadStats = useCallback(async () => {
+    const [activeRes, alertsRes] = await Promise.allSettled([
+      apiRequest<ProductsResponse>('/products?isActive=true&limit=1'),
+      apiRequest<AlertsResponse>('/inventory/alerts'),
+    ])
+    setStats({
+      active: activeRes.status === 'fulfilled' ? activeRes.value.total : 0,
+      low: alertsRes.status === 'fulfilled' ? alertsRes.value.lowStock.count : 0,
+      out: alertsRes.status === 'fulfilled' ? alertsRes.value.outOfStock.count : 0,
+    })
   }, [])
 
   const loadMovements = useCallback(async (productId: string) => {
@@ -64,6 +104,10 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
   }, [loadProducts])
 
   useEffect(() => {
+    loadStats()
+  }, [loadStats])
+
+  useEffect(() => {
     if (selectedId) {
       loadMovements(selectedId)
     } else {
@@ -71,23 +115,11 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
     }
   }, [selectedId, loadMovements])
 
-  const visibleProducts = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return products.filter((product) => {
-      const matchesText = !query || `${product.name} ${product.sku}`.toLowerCase().includes(query)
-      const matchesState = !stateFilter || stockStateOf(product) === stateFilter
-      return matchesText && matchesState
-    })
-  }, [products, search, stateFilter])
-
-  const lowCount = products.filter((product) => stockStateOf(product) === 'LOW').length
-  const outCount = products.filter((product) => stockStateOf(product) === 'OUT').length
-  const selectedProduct = products.find((product) => product._id === selectedId)
-
   function handleSaved(message: string) {
     setAdjusting(false)
     setNotice(message)
     loadProducts()
+    loadStats()
     if (selectedId) loadMovements(selectedId)
   }
 
@@ -109,17 +141,17 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
       <div className="section-stat-row">
         <div className="small-stat">
           <span>Active products</span>
-          <strong>{products.length}</strong>
+          <strong>{stats ? stats.active.toLocaleString('en-US') : '—'}</strong>
           <small>Total listed</small>
         </div>
         <div className="small-stat">
           <span>Low stock</span>
-          <strong>{lowCount}</strong>
+          <strong>{stats ? stats.low.toLocaleString('en-US') : '—'}</strong>
           <small>At or below the minimum</small>
         </div>
         <div className="small-stat">
           <span>Out of stock</span>
-          <strong>{outCount}</strong>
+          <strong>{stats ? stats.out.toLocaleString('en-US') : '—'}</strong>
           <small>Currently zero</small>
         </div>
       </div>
@@ -130,7 +162,7 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
         <div className="table-toolbar">
           <div className="table-title">
             <h2>Stock list</h2>
-            <span>{visibleProducts.length} items</span>
+            <span>{matching.toLocaleString('en-US')} items</span>
           </div>
           <div className="toolbar-actions">
             <input
@@ -139,7 +171,14 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <select className={inputClass + ' max-w-[10rem] bg-white'} value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
+            <select
+              className={inputClass + ' max-w-[10rem] bg-white'}
+              value={stateFilter}
+              onChange={(event) => {
+                setStateFilter(event.target.value)
+                setPage(1)
+              }}
+            >
               <option value="">All statuses</option>
               <option value="OK">Healthy</option>
               <option value="LOW">Low stock</option>
@@ -164,8 +203,8 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
             </thead>
             <tbody>
               {loadingProducts && <tr><td colSpan={6}>Loading...</td></tr>}
-              {!loadingProducts && visibleProducts.length === 0 && <tr><td colSpan={6}>No products found.</td></tr>}
-              {!loadingProducts && visibleProducts.map((product) => {
+              {!loadingProducts && products.length === 0 && <tr><td colSpan={6}>No products found.</td></tr>}
+              {!loadingProducts && products.map((product) => {
                 const state = stockStateOf(product)
                 return (
                   <tr key={product._id}>
@@ -177,7 +216,7 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
                     <td>{product.minStockLevel}</td>
                     <td><span className={`status ${STATE_CLASS[state]}`}>{STATE_LABEL[state as StockState]}</span></td>
                     <td>
-                      <button className={rowAction.history} onClick={() => setSelectedId(product._id)}>
+                      <button className={rowAction.history} onClick={() => setSelectedProduct(product)}>
                         History
                       </button>
                     </td>
@@ -186,6 +225,26 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex items-center justify-between px-1 py-3 text-sm">
+          <span>Page {page} / {totalPages}</span>
+          <div className="flex gap-2">
+            <button
+              className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40"
+              disabled={page <= 1 || loadingProducts}
+              onClick={() => setPage((value) => value - 1)}
+            >
+              Previous
+            </button>
+            <button
+              className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40"
+              disabled={page >= totalPages || loadingProducts}
+              onClick={() => setPage((value) => value + 1)}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
 
@@ -196,14 +255,13 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
             {selectedProduct && <span>{selectedProduct.name}</span>}
           </div>
           <div className="toolbar-actions">
-            <select className={inputClass + ' max-w-xs bg-white'} value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-              <option value="">Select a product</option>
-              {products.map((product) => <option key={product._id} value={product._id}>{product.name} ({product.sku})</option>)}
-            </select>
+            <div className="w-full max-w-sm">
+              <ProductPicker<ProductRow> value={selectedProduct} onChange={setSelectedProduct} activeOnly={false} />
+            </div>
           </div>
         </div>
 
-        {!selectedId && <p className="px-4 pb-4 text-sm text-gray-500">Select a product from the list above to view its history.</p>}
+        {!selectedId && <p className="px-4 pb-4 text-sm text-gray-500">Search for a product, or press History in the list above, to view its stock history.</p>}
         {selectedId && movementError && <p className="px-4 pb-4 text-sm text-red-600">{movementError}</p>}
 
         {selectedId && !movementError && (
@@ -246,8 +304,7 @@ export function InventoryPage({ canManage }: { canManage: boolean }) {
 
       {adjusting && (
         <AdjustModal
-          products={products}
-          initialProductId={selectedId}
+          initialProduct={selectedProduct}
           onClose={() => setAdjusting(false)}
           onSaved={handleSaved}
         />

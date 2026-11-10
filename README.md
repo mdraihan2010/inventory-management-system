@@ -12,7 +12,8 @@ An inventory, sales and purchase management system. It covers products, stock, s
 ## Main features
 
 - Products, categories and brands
-- Bulk product import from a CSV file (with a preview before saving)
+- Bulk product import from a CSV file (with a preview before saving), tested with 10,000+ products
+- Product search boxes in sales, purchases and stock adjustment, so the app stays fast with thousands of products
 - Stock, stock history and low-stock alerts
 - Purchases: draft, complete (stock increases) and cancel
 - Sales: draft, complete (stock decreases and purchase cost is saved) and cancel
@@ -112,7 +113,15 @@ The first row of the CSV must be the header:
 name,sku,category,brand,purchase_price,selling_price,min_stock_level,opening_stock,unit
 ```
 
-`category` and `brand` must match existing names exactly. Each `sku` must be unique. `opening_stock` is recorded in the stock history as the opening stock.
+`category` must match an existing name exactly. Each `sku` must be unique. `opening_stock` is recorded in the stock history as the opening stock.
+
+`brand` must also match an existing name. To create brands that do not exist yet, add `--create-brands`:
+
+```bash
+node src/scripts/importProducts.js "C:\path\to\products.csv" "admin@example.com" --create-brands --apply
+```
+
+Products are saved in groups of 500, so a file with 10,000 products takes a few minutes. The Audit Log gets one entry for the whole import. If the import stops part-way, run the same command again: products that were already saved are skipped because their SKU exists.
 
 ## Deploy
 

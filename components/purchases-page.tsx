@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
-import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
+import { ApiError, apiRequest } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
 import { Button } from '@/components/ui/button'
 import { rowAction } from '@/components/ui/row-action'
@@ -17,6 +17,7 @@ import {
   type SupplierRef,
 } from '@/components/purchases-shared'
 import { PurchaseDetailModal } from '@/components/purchases-modals'
+import { ProductPicker } from '@/components/product-picker'
 
 type ListResponse<T> = {
   success: boolean
@@ -281,7 +282,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-type DraftRow = { productId: string; quantity: string; unitPrice: string }
+type DraftRow = { product: ProductRef | null; quantity: string; unitPrice: string }
 
 function NewPurchaseModal({
   suppliers,
@@ -292,21 +293,12 @@ function NewPurchaseModal({
   onClose: () => void
   onCreated: (purchaseNumber: string) => void
 }) {
-  const [products, setProducts] = useState<ProductRef[]>([])
   const [supplierId, setSupplierId] = useState('')
-  const [rows, setRows] = useState<DraftRow[]>([{ productId: '', quantity: '1', unitPrice: '' }])
+  const [rows, setRows] = useState<DraftRow[]>([{ product: null, quantity: '1', unitPrice: '' }])
   const [discount, setDiscount] = useState('')
   const [notes, setNotes] = useState('')
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    apiRequestAll<ProductRef>('/products?isActive=true')
-      .then(setProducts)
-      .catch(() => setProducts([]))
-  }, [])
-
-  const productById = new Map(products.map((product) => [product._id, product]))
 
   // This is only for display. The server calculates the final total itself
   const lineTotals = rows.map((row) => {
@@ -324,16 +316,15 @@ function NewPurchaseModal({
   }
 
   // When a product is chosen, its current purchase price is filled in automatically. It can still be changed
-  function chooseProduct(index: number, productId: string) {
-    const product = productById.get(productId)
+  function chooseProduct(index: number, product: ProductRef | null) {
     updateRow(index, {
-      productId,
+      product,
       unitPrice: product ? String(product.purchasePrice) : '',
     })
   }
 
   function addRow() {
-    setRows((previous) => [...previous, { productId: '', quantity: '1', unitPrice: '' }])
+    setRows((previous) => [...previous, { product: null, quantity: '1', unitPrice: '' }])
   }
 
   function removeRow(index: number) {
@@ -349,13 +340,13 @@ function NewPurchaseModal({
       return
     }
 
-    const selected = rows.filter((row) => row.productId)
+    const selected = rows.filter((row): row is DraftRow & { product: ProductRef } => row.product !== null)
     if (selected.length === 0) {
       setFormError('Select at least one product.')
       return
     }
 
-    const ids = selected.map((row) => row.productId)
+    const ids = selected.map((row) => row.product._id)
     if (new Set(ids).size !== ids.length) {
       setFormError('The same product cannot be added twice.')
       return
@@ -386,7 +377,7 @@ function NewPurchaseModal({
         body: {
           supplier: supplierId,
           items: selected.map((row) => ({
-            productId: row.productId,
+            productId: row.product._id,
             quantity: Number(row.quantity),
             unitPrice: Number(row.unitPrice),
           })),
@@ -418,10 +409,7 @@ function NewPurchaseModal({
           {rows.map((row, index) => (
             <div key={index} className="grid grid-cols-12 items-start gap-2">
               <div className="col-span-5">
-                <select className={inputClass + ' bg-white'} value={row.productId} onChange={(event) => chooseProduct(index, event.target.value)}>
-                  <option value="">Select product</option>
-                  {products.map((product) => <option key={product._id} value={product._id}>{product.name} ({product.sku})</option>)}
-                </select>
+                <ProductPicker<ProductRef> value={row.product} onChange={(picked) => chooseProduct(index, picked)} />
               </div>
               <div className="col-span-2">
                 <input

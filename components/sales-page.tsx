@@ -6,6 +6,7 @@ import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
 import { downloadCsv, todayStamp, toCsv, toLocalDate } from '@/lib/csv'
 import { formatMoney } from '@/lib/money'
 import { Button } from '@/components/ui/button'
+import { ProductPicker } from '@/components/product-picker'
 import { rowAction } from '@/components/ui/row-action'
 import {
   PAYMENT_LABEL,
@@ -309,7 +310,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-type DraftRow = { productId: string; quantity: string }
+type DraftRow = { product: Product | null; quantity: string }
 
 function NewSaleModal({
   customers,
@@ -320,25 +321,16 @@ function NewSaleModal({
   onClose: () => void
   onCreated: (saleNumber: string) => void
 }) {
-  const [products, setProducts] = useState<Product[]>([])
   const [customerId, setCustomerId] = useState('')
-  const [rows, setRows] = useState<DraftRow[]>([{ productId: '', quantity: '1' }])
+  const [rows, setRows] = useState<DraftRow[]>([{ product: null, quantity: '1' }])
   const [discount, setDiscount] = useState('')
   const [notes, setNotes] = useState('')
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    apiRequestAll<Product>('/products?isActive=true')
-      .then(setProducts)
-      .catch(() => setProducts([]))
-  }, [])
-
-  const productById = new Map(products.map((product) => [product._id, product]))
-
   // This is only for display. The server calculates the final price itself
   const lineTotals = rows.map((row) => {
-    const product = productById.get(row.productId)
+    const product = row.product
     const quantity = Number(row.quantity)
     return product && Number.isFinite(quantity) ? product.sellingPrice * quantity : 0
   })
@@ -352,7 +344,7 @@ function NewSaleModal({
   }
 
   function addRow() {
-    setRows((previous) => [...previous, { productId: '', quantity: '1' }])
+    setRows((previous) => [...previous, { product: null, quantity: '1' }])
   }
 
   function removeRow(index: number) {
@@ -363,13 +355,13 @@ function NewSaleModal({
     event.preventDefault()
     setFormError('')
 
-    const selected = rows.filter((row) => row.productId)
+    const selected = rows.filter((row): row is DraftRow & { product: Product } => row.product !== null)
     if (selected.length === 0) {
       setFormError('Select at least one product.')
       return
     }
 
-    const ids = selected.map((row) => row.productId)
+    const ids = selected.map((row) => row.product._id)
     if (new Set(ids).size !== ids.length) {
       setFormError('The same product cannot be added twice.')
       return
@@ -394,7 +386,7 @@ function NewSaleModal({
         method: 'POST',
         body: {
           customer: customerId || null,
-          items: selected.map((row) => ({ productId: row.productId, quantity: Number(row.quantity) })),
+          items: selected.map((row) => ({ productId: row.product._id, quantity: Number(row.quantity) })),
           discount: safeDiscount,
           notes: notes.trim(),
         },
@@ -421,17 +413,14 @@ function NewSaleModal({
         <div className="space-y-2">
           <p className="text-sm font-medium text-gray-700">Products</p>
           {rows.map((row, index) => {
-            const product = productById.get(row.productId)
+            const product = row.product
             const quantity = Number(row.quantity)
-            const notEnough = product !== undefined && Number.isFinite(quantity) && quantity > product.currentStock
+            const notEnough = product !== null && Number.isFinite(quantity) && quantity > product.currentStock
 
             return (
               <div key={index} className="grid grid-cols-12 items-start gap-2">
                 <div className="col-span-6">
-                  <select className={inputClass + ' bg-white'} value={row.productId} onChange={(event) => updateRow(index, { productId: event.target.value })}>
-                    <option value="">Select product</option>
-                    {products.map((item) => <option key={item._id} value={item._id}>{item.name} ({item.sku})</option>)}
-                  </select>
+                  <ProductPicker<Product> value={row.product} onChange={(picked) => updateRow(index, { product: picked })} />
                   {product && (
                     <p className={`mt-1 text-xs ${notEnough ? 'text-red-600' : 'text-gray-500'}`}>
                       Stock: {product.currentStock} {product.unit}{notEnough ? ' (not enough)' : ''}

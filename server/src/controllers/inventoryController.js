@@ -140,22 +140,26 @@ export async function getStockMovements(req, res) {
 // Products that are out of stock, and products with low stock
 export async function getStockAlerts(req, res) {
   try {
-    const outOfStock = await Product.find({ isActive: true, currentStock: 0 })
-      .select("name sku currentStock minStockLevel")
-      .sort({ name: 1 });
-
-    const lowStock = await Product.find({
+    // The counts cover every product. The lists only hold the first products, so the answer stays small
+    const ALERT_LIST_LIMIT = 50;
+    const outFilter = { isActive: true, currentStock: { $lte: 0 } };
+    const lowFilter = {
       isActive: true,
       currentStock: { $gt: 0 },
       $expr: { $lte: ["$currentStock", "$minStockLevel"] },
-    })
-      .select("name sku currentStock minStockLevel")
-      .sort({ currentStock: 1 });
+    };
+
+    const [outOfStock, outCount, lowStock, lowCount] = await Promise.all([
+      Product.find(outFilter).select("name sku currentStock minStockLevel").sort({ name: 1 }).limit(ALERT_LIST_LIMIT),
+      Product.countDocuments(outFilter),
+      Product.find(lowFilter).select("name sku currentStock minStockLevel").sort({ currentStock: 1 }).limit(ALERT_LIST_LIMIT),
+      Product.countDocuments(lowFilter),
+    ]);
 
     res.status(200).json({
       success: true,
-      outOfStock: { count: outOfStock.length, data: outOfStock },
-      lowStock: { count: lowStock.length, data: lowStock },
+      outOfStock: { count: outCount, data: outOfStock },
+      lowStock: { count: lowCount, data: lowStock },
     });
   } catch (error) {
     console.error("Stock alerts error:", error.message);

@@ -10,10 +10,19 @@ import { logAudit } from "../utils/auditLogger.js";
 
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
+// With --create-brands, brands that do not exist yet are created during the import
+const createBrands = args.includes("--create-brands");
 const [csvPath, adminEmailArg] = args.filter((arg) => !arg.startsWith("--"));
 
+// Products are saved in groups. Each group is saved in one transaction, so a group is saved fully or not at all
+const BATCH_SIZE = 500;
+// How many rows the preview and the error list show
+const SHOW_ROWS = 20;
+
 if (!csvPath || !adminEmailArg) {
-  console.log('Usage: node src/scripts/importProducts.js "<csv file path>" "<admin email>" [--apply]');
+  console.log(
+    'Usage: node src/scripts/importProducts.js "<csv file path>" "<admin email>" [--create-brands] [--apply]'
+  );
   process.exit(1);
 }
 
@@ -105,6 +114,8 @@ const records = table.slice(1).map((cells, index) => {
 
 const valid = [];
 const errors = [];
+// Brands that will be created because of --create-brands (lowercase name -> brand)
+const newBrands = new Map();
 const fileSkus = new Set();
 const fileBarcodes = new Set();
 
@@ -134,11 +145,16 @@ for (const { row, data } of records) {
     problems.push(`category "${data.category}" is inactive`);
   }
 
-  const brand = brandByName.get((data.brand || "").toLowerCase());
+  let brand = brandByName.get((data.brand || "").toLowerCase());
+  if (!brand && data.brand && createBrands) {
+    const key = data.brand.toLowerCase();
+    if (!newBrands.has(key)) newBrands.set(key, { _id: null, name: data.brand, isActive: true });
+    brand = newBrands.get(key);
+  }
   if (!data.brand) {
     problems.push("brand is empty");
   } else if (!brand) {
-    problems.push(`brand "${data.brand}" was not found`);
+    problems.push(`brand "${data.brand}" was not found (add --create-brands to create it)`);
   } else if (!brand.isActive) {
     problems.push(`brand "${data.brand}" is inactive`);
   }
@@ -199,18 +215,31 @@ console.log(`Invalid: ${errors.length}`);
 
 if (errors.length > 0) {
   console.log("\nInvalid rows (these will not be imported):");
-  for (const item of errors) {
+  for (const item of errors.slice(0, SHOW_ROWS)) {
     console.log(`  Row ${item.row} (${item.name}): ${item.problems.join("; ")}`);
   }
+  if (errors.length > SHOW_ROWS) console.log(`  ... and ${errors.length - SHOW_ROWS} more invalid rows`);
+}
+
+if (newBrands.size > 0) {
+  console.log(`\nNew brands that will be created: ${[...newBrands.values()].map((b) => b.name).join(", ")}`);
 }
 
 if (valid.length > 0) {
+  const perCategory = new Map();
+  for (const item of valid) perCategory.set(item.category.name, (perCategory.get(item.category.name) || 0) + 1);
+  console.log("\nValid products per category:");
+  for (const [name, count] of [...perCategory].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${name}: ${count}`);
+  }
+
   console.log("\nImport preview:");
-  for (const item of valid) {
+  for (const item of valid.slice(0, SHOW_ROWS)) {
     console.log(
       `  ${item.name} | ${item.sku} | ${item.category.name} | ${item.brand.name} | Selling ${item.sellingPrice} | Opening stock ${item.openingStock}`
     );
   }
+  if (valid.length > SHOW_ROWS) console.log(`  ... and ${valid.length - SHOW_ROWS} more`);
 }
 
 if (!apply) {
@@ -219,81 +248,93 @@ if (!apply) {
   process.exit(0);
 }
 
+// Create the new brands first, so the products can refer to them
+for (const brand of newBrands.values()) {
+  const created = await Brand.create({ name: brand.name });
+  brand._id = created._id;
+  await logAudit({
+    userId: admin._id,
+    action: "CREATE",
+    entityType: "Brand",
+    entityId: created._id,
+    summary: `Created brand ${created.name} during CSV import`,
+  });
+}
+
 let imported = 0;
 const failed = [];
+const startedAt = Date.now();
 
-for (const item of valid) {
+for (let start = 0; start < valid.length; start += BATCH_SIZE) {
+  const batch = valid.slice(start, start + BATCH_SIZE);
   const session = await mongoose.startSession();
-  let created = null;
 
   try {
     await session.withTransaction(async () => {
-      const [product] = await Product.create(
-        [
-          {
-            name: item.name,
-            sku: item.sku,
-            barcode: item.barcode,
-            description: item.description,
-            category: item.category._id,
-            brand: item.brand._id,
-            purchasePrice: item.purchasePrice,
-            sellingPrice: item.sellingPrice,
-            minStockLevel: item.minStockLevel,
-            unit: item.unit,
-          },
-        ],
-        { session }
+      // The opening stock is set directly, and one OPENING_STOCK record is written for each product that has stock
+      const products = await Product.insertMany(
+        batch.map((item) => ({
+          name: item.name,
+          sku: item.sku,
+          barcode: item.barcode,
+          description: item.description,
+          category: item.category._id,
+          brand: item.brand._id,
+          purchasePrice: item.purchasePrice,
+          sellingPrice: item.sellingPrice,
+          minStockLevel: item.minStockLevel,
+          unit: item.unit,
+          currentStock: item.openingStock,
+        })),
+        { session, ordered: true }
       );
 
-      if (item.openingStock > 0) {
-        const updated = await Product.findByIdAndUpdate(
-          product._id,
-          { $inc: { currentStock: item.openingStock } },
-          { new: true, session }
-        );
+      const movements = products
+        .map((product, index) => ({ product, openingStock: batch[index].openingStock }))
+        .filter(({ openingStock }) => openingStock > 0)
+        .map(({ product, openingStock }) => ({
+          product: product._id,
+          type: "OPENING_STOCK",
+          change: openingStock,
+          previousStock: 0,
+          resultingStock: openingStock,
+          reason: "Opening stock (CSV import)",
+          createdBy: admin._id,
+        }));
 
-        await StockMovement.create(
-          [
-            {
-              product: product._id,
-              type: "OPENING_STOCK",
-              change: item.openingStock,
-              previousStock: 0,
-              resultingStock: updated.currentStock,
-              reason: "Opening stock (CSV import)",
-              createdBy: admin._id,
-            },
-          ],
-          { session }
-        );
+      if (movements.length > 0) {
+        await StockMovement.insertMany(movements, { session, ordered: true });
       }
-
-      created = product;
     });
 
-    await logAudit({
-      userId: admin._id,
-      action: "CREATE",
-      entityType: "Product",
-      entityId: created._id,
-      summary: `Imported product ${item.name} (SKU ${item.sku}) from CSV`,
-    });
-
-    imported++;
+    imported += batch.length;
+    console.log(`  Saved ${imported} of ${valid.length}`);
   } catch (error) {
-    failed.push({ row: item.row, name: item.name, message: error.message });
+    failed.push({ from: batch[0].row, to: batch[batch.length - 1].row, message: error.message });
+    console.log(`  Rows ${batch[0].row} to ${batch[batch.length - 1].row} were not saved: ${error.message}`);
   } finally {
     await session.endSession();
   }
 }
 
-console.log(`\nImported: ${imported}`);
+// One audit entry for the whole import, so the audit log is not filled with thousands of rows
+if (imported > 0) {
+  await logAudit({
+    userId: admin._id,
+    action: "CREATE",
+    entityType: "Product",
+    entityId: "csv-import",
+    summary: `Imported ${imported} products from CSV file ${csvPath.split(/[\\/]/).pop()}`,
+  });
+}
+
+const seconds = Math.round((Date.now() - startedAt) / 1000);
+console.log(`\nImported: ${imported} (in ${seconds} seconds)`);
 
 if (failed.length > 0) {
-  console.log("\nFailed to import:");
+  console.log("\nFailed to import (run the same command again to retry; saved rows are skipped as existing SKUs):");
   for (const item of failed) {
-    console.log(`  Row ${item.row} (${item.name}): ${item.message}`);
+    console.log(`  Rows ${item.from} to ${item.to}: ${item.message}`);
   }
 }
 
