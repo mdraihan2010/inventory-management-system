@@ -123,6 +123,16 @@ node src/scripts/importProducts.js "C:\path\to\products.csv" "admin@example.com"
 
 Products are saved in groups of 500, so a file with 10,000 products takes a few minutes. The Audit Log gets one entry for the whole import. If the import stops part-way, run the same command again: products that were already saved are skipped because their SKU exists.
 
+## Import customers from a CSV file
+
+From the `server` folder. The first run only shows a preview. Add `--apply` to save.
+
+```bash
+node src/scripts/importCustomers.js "C:\path\to\customers.csv" "admin@example.com" --apply
+```
+
+The header is `name,phone,email,address,notes`. Only `name` is required. Customers whose email or phone already exists are skipped.
+
 ## Deploy
 
 - **Frontend (Vercel):** Add the environment variable `NEXT_PUBLIC_API_BASE_URL`, then redeploy.
