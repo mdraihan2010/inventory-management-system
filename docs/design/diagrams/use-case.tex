@@ -1,0 +1,105 @@
+% Use Case Diagram: StockPilot (Inventory Management System)
+% Built from the real role checks in server/src/routes. Compile with: pdflatex use-case.tex
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usetikzlibrary{shapes.geometric,arrows.meta,calc,fit}
+
+\begin{document}
+\begin{tikzpicture}[
+  font=\small,
+  usecase/.style={ellipse, draw, fill=white, minimum width=4.6cm, minimum height=0.95cm,
+                  inner sep=1pt, align=center, text width=3.9cm},
+  shared/.style={usecase, fill=gray!10},
+  assoc/.style={draw, gray!60!black},
+  gen/.style={draw, thick, -{Triangle[open,length=3.2mm,width=3.2mm]}},
+  rel/.style={draw, dashed, -{Stealth[length=2.2mm]}},
+  rellabel/.style={font=\scriptsize, fill=white, inner sep=1pt}
+]
+
+% stick figure: \actor{id}{x,y}{label}
+\newcommand{\actor}[3]{%
+  \begin{scope}[shift={(#2)}]
+    \draw[thick] (0,0.78) circle (0.24);
+    \draw[thick] (0,0.54) -- (0,-0.08);
+    \draw[thick] (-0.4,0.34) -- (0.4,0.34);
+    \draw[thick] (0,-0.08) -- (-0.3,-0.6);
+    \draw[thick] (0,-0.08) -- (0.3,-0.6);
+    \node[font=\small\bfseries] at (0,-0.92) {#3};
+    \coordinate (#1) at (0,0.2);
+    \coordinate (#1-top) at (0,1.05);
+    \coordinate (#1-bottom) at (0,-1.2);
+  \end{scope}}
+
+% ---------------- left column: Manager (and Administrator) ----------------
+\def\L{5.6}
+\node[usecase] (products)   at (\L,13.20) {Manage products\\(add, edit, deactivate)};
+\node[usecase] (catbrand)   at (\L,12.05) {Manage categories\\and brands};
+\node[usecase] (suppliers)  at (\L,10.90) {Manage suppliers};
+\node[usecase] (editcust)   at (\L, 9.75) {Edit customers};
+\node[usecase] (reports)    at (\L, 8.60) {View reports\\(sales, purchase, profit)};
+\node[usecase] (dues)       at (\L, 7.45) {View payments and dues};
+\node[usecase] (returns)    at (\L, 6.30) {Record customer or\\supplier return};
+\node[usecase] (cancelret)  at (\L, 5.15) {Cancel a return};
+\node[usecase] (canceldraft)at (\L, 4.00) {Cancel draft sale\\or purchase};
+\node[usecase] (paysup)     at (\L, 2.85) {Pay supplier};
+\node[usecase] (adjust)     at (\L, 1.70) {Adjust stock\\(damaged, opening \dots)};
+\node[usecase] (purchase)   at (\L, 0.55) {Create and complete\\purchase};
+
+% ---------------- right column: Administrator only, then all roles ----------------
+\def\R{11.6}
+\node[usecase] (users)      at (\R,13.20) {Manage users\\(create, role, deactivate)};
+\node[usecase] (resetpw)    at (\R,12.05) {Reset a user's password};
+\node[usecase] (audit)      at (\R,10.90) {View audit log};
+
+\node[usecase] (login)      at (\R, 8.60) {Log in};
+\node[usecase] (password)   at (\R, 7.45) {Change own\\password or email};
+\node[usecase] (view)       at (\R, 6.30) {View products, stock\\and stock alerts};
+\node[usecase] (addcust)    at (\R, 5.15) {Add customer};
+\node[usecase] (sale)       at (\R, 4.00) {Create sale (draft)};
+\node[usecase] (collect)    at (\R, 2.85) {Collect customer payment};
+\node[usecase] (invoice)    at (\R, 1.70) {Print invoice};
+\node[usecase] (complete)   at (\R, 0.55) {Complete sale};
+
+% ---------------- included use cases ----------------
+\node[shared] (stock)       at (7.2,-1.45) {Update stock and record\\stock movement};
+\node[shared] (checkstock)  at (12.9,-1.45) {Check available stock};
+
+% ---------------- system boundary and band labels ----------------
+\coordinate (titlespace) at (8.6,14.75);
+\node[draw, thick, rounded corners=5pt, inner xsep=12pt, inner ysep=14pt,
+      fit=(products)(users)(purchase)(complete)(stock)(checkstock)(titlespace)] (system) {};
+\node[font=\normalsize\bfseries] at (8.6,14.72) {StockPilot: Inventory Management System};
+\node[font=\scriptsize\itshape, gray!70!black] at (\L,13.95) {Manager and Administrator};
+\node[font=\scriptsize\itshape, gray!70!black] at (\R,13.95) {Administrator only};
+\draw[gray!55, dashed] (\R-2.6,9.68) -- (\R+2.6,9.68);
+\node[font=\scriptsize\itshape, gray!70!black] at (\R,9.38) {All roles};
+
+% ---------------- actors ----------------
+\actor{manager}{-0.6,6.85}{Manager}
+\actor{admin}{17.6,12.05}{Administrator}
+\actor{staff}{17.6,4.6}{Staff}
+
+% ---------------- associations ----------------
+\begin{scope}[on background layer/.style={}]
+\foreach \u in {products,catbrand,suppliers,editcust,reports,dues,returns,cancelret,canceldraft,paysup,adjust,purchase}
+  { \draw[assoc] ($(manager)+(0.45,0)$) -- (\u.west); }
+\foreach \u in {users,resetpw,audit}
+  { \draw[assoc] ($(admin)+(-0.45,0)$) -- (\u.east); }
+\foreach \u in {login,password,view,addcust,sale,collect,invoice,complete}
+  { \draw[assoc] ($(staff)+(-0.45,0)$) -- (\u.east); }
+\end{scope}
+
+% ---------------- generalization: Administrator is a Manager, Manager is a Staff ----------------
+\draw[gen] (admin-top) -- ++(0,2.85) -| (manager-top);
+\draw[gen] (manager-bottom) -- ++(0,-8.95) -| (staff-bottom);
+\node[font=\scriptsize\itshape, fill=white, inner sep=1pt] at (8.5,15.95) {Administrator can do everything a Manager can};
+\node[font=\scriptsize\itshape, fill=white, inner sep=1pt] at (8.5,-3.33) {Manager can do everything a Staff user can};
+
+% ---------------- include relationships ----------------
+\draw[rel] (purchase.south) -- node[rellabel, right, pos=0.45] {\guillemotleft include\guillemotright} (stock.north west);
+\draw[rel] (complete.south west) -- node[rellabel, pos=0.5, left=1pt] {\guillemotleft include\guillemotright} (stock.north east);
+\draw[rel] (complete.south) -- node[rellabel, right, pos=0.45] {\guillemotleft include\guillemotright} (checkstock.north);
+
+\end{tikzpicture}
+\end{document}

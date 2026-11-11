@@ -1,0 +1,74 @@
+// Class Diagram: StockPilot. Generated from the Mongoose models in server/src/models by gen_class.py
+// Render: dot -Tpdf class-diagram.dot -o class-diagram.pdf
+digraph ClassDiagram {
+  graph [rankdir=TB, fontname="Latin Modern Roman,10 Regular", nodesep=0.45, ranksep=0.7, splines=ortho, pad=0.2];
+  node [shape=plain, fontname="Latin Modern Roman,10 Regular", fontsize=10];
+  edge [fontname="Latin Modern Roman,10 Regular", fontsize=9, arrowsize=0.8, color="#333333"];
+  User [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>User</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ name: String<BR ALIGN="LEFT"/>+ email: String {unique}<BR ALIGN="LEFT"/>+ passwordHash: String<BR ALIGN="LEFT"/>+ role: Role<BR ALIGN="LEFT"/>+ isActive: Boolean<BR ALIGN="LEFT"/>+ mustChangePassword: Boolean<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ login(email, password): JWT<BR ALIGN="LEFT"/>+ changePassword(old, new)<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  Category [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Category</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ name: String {unique}<BR ALIGN="LEFT"/>+ description: String<BR ALIGN="LEFT"/>+ isActive: Boolean<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Brand [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Brand</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ name: String {unique}<BR ALIGN="LEFT"/>+ description: String<BR ALIGN="LEFT"/>+ isActive: Boolean<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Product [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Product</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ name: String<BR ALIGN="LEFT"/>+ sku: String {unique}<BR ALIGN="LEFT"/>+ barcode: String<BR ALIGN="LEFT"/>+ purchasePrice: Number<BR ALIGN="LEFT"/>+ sellingPrice: Number<BR ALIGN="LEFT"/>+ currentStock: Number<BR ALIGN="LEFT"/>+ minStockLevel: Number<BR ALIGN="LEFT"/>+ unit: String<BR ALIGN="LEFT"/>+ isActive: Boolean<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ adjustStock(type, qty, reason)<BR ALIGN="LEFT"/>+ stockState(): OK | LOW | OUT<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  Customer [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Customer</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ name: String<BR ALIGN="LEFT"/>+ phone: String<BR ALIGN="LEFT"/>+ email: String<BR ALIGN="LEFT"/>+ address: String<BR ALIGN="LEFT"/>+ notes: String<BR ALIGN="LEFT"/>+ isActive: Boolean<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Supplier [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Supplier</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ name: String<BR ALIGN="LEFT"/>+ companyName: String<BR ALIGN="LEFT"/>+ phone: String<BR ALIGN="LEFT"/>+ email: String<BR ALIGN="LEFT"/>+ address: String<BR ALIGN="LEFT"/>+ isActive: Boolean<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Sale [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Sale</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ saleNumber: String {unique}<BR ALIGN="LEFT"/>+ saleDate: Date<BR ALIGN="LEFT"/>+ subtotal: Number<BR ALIGN="LEFT"/>+ discount: Number<BR ALIGN="LEFT"/>+ grandTotal: Number<BR ALIGN="LEFT"/>+ paidAmount: Number<BR ALIGN="LEFT"/>+ outstandingAmount: Number<BR ALIGN="LEFT"/>+ returnedAmount: Number<BR ALIGN="LEFT"/>+ paymentStatus: PaymentStatus<BR ALIGN="LEFT"/>+ status: DocStatus<BR ALIGN="LEFT"/>+ walkInPaymentMethod: PaymentMethod<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ complete()<BR ALIGN="LEFT"/>+ cancel()<BR ALIGN="LEFT"/>+ addPayment(amount, method)<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  SaleItem [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#f3f3f3"><FONT POINT-SIZE="9"><I>&laquo;embedded document&raquo;</I></FONT><BR/><B>SaleItem</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ productName: String<BR ALIGN="LEFT"/>+ sku: String<BR ALIGN="LEFT"/>+ quantity: Number<BR ALIGN="LEFT"/>+ unitPrice: Number<BR ALIGN="LEFT"/>+ lineTotal: Number<BR ALIGN="LEFT"/>+ costPrice: Number<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Purchase [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Purchase</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ purchaseNumber: String {unique}<BR ALIGN="LEFT"/>+ purchaseDate: Date<BR ALIGN="LEFT"/>+ subtotal: Number<BR ALIGN="LEFT"/>+ discount: Number<BR ALIGN="LEFT"/>+ grandTotal: Number<BR ALIGN="LEFT"/>+ paidAmount: Number<BR ALIGN="LEFT"/>+ returnedAmount: Number<BR ALIGN="LEFT"/>+ status: DocStatus<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ complete()<BR ALIGN="LEFT"/>+ cancel()<BR ALIGN="LEFT"/>+ paySupplier(amount, method)<BR ALIGN="LEFT"/>+ outstanding(): Number<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  PurchaseItem [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#f3f3f3"><FONT POINT-SIZE="9"><I>&laquo;embedded document&raquo;</I></FONT><BR/><B>PurchaseItem</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ productName: String<BR ALIGN="LEFT"/>+ sku: String<BR ALIGN="LEFT"/>+ quantity: Number<BR ALIGN="LEFT"/>+ unitPrice: Number<BR ALIGN="LEFT"/>+ lineTotal: Number<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Payment [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Payment</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ amount: Number<BR ALIGN="LEFT"/>+ method: PaymentMethod<BR ALIGN="LEFT"/>+ reference: String<BR ALIGN="LEFT"/>+ createdAt: Date<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  SupplierPayment [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>SupplierPayment</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ amount: Number<BR ALIGN="LEFT"/>+ method: PaymentMethod<BR ALIGN="LEFT"/>+ reference: String<BR ALIGN="LEFT"/>+ createdAt: Date<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Return [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>Return</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ returnNumber: String {unique}<BR ALIGN="LEFT"/>+ kind: CUSTOMER | SUPPLIER<BR ALIGN="LEFT"/>+ totalValue: Number<BR ALIGN="LEFT"/>+ creditApplied: Number<BR ALIGN="LEFT"/>+ cashRefund: Number<BR ALIGN="LEFT"/>+ refundMethod: PaymentMethod<BR ALIGN="LEFT"/>+ reason: String<BR ALIGN="LEFT"/>+ status: ACTIVE | CANCELLED<BR ALIGN="LEFT"/>+ cancelReason: String<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ cancel(reason)<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  ReturnItem [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#f3f3f3"><FONT POINT-SIZE="9"><I>&laquo;embedded document&raquo;</I></FONT><BR/><B>ReturnItem</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ productName: String<BR ALIGN="LEFT"/>+ sku: String<BR ALIGN="LEFT"/>+ quantity: Number<BR ALIGN="LEFT"/>+ unitPrice: Number<BR ALIGN="LEFT"/>+ lineTotal: Number<BR ALIGN="LEFT"/>+ costPrice: Number<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  StockMovement [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>StockMovement</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ type: MovementType<BR ALIGN="LEFT"/>+ change: Number<BR ALIGN="LEFT"/>+ previousStock: Number<BR ALIGN="LEFT"/>+ resultingStock: Number<BR ALIGN="LEFT"/>+ reason: String<BR ALIGN="LEFT"/>+ createdAt: Date<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  AuditLog [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e8eefc"><FONT POINT-SIZE="9"><I>&laquo;Mongoose model&raquo;</I></FONT><BR/><B>AuditLog</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ action: String<BR ALIGN="LEFT"/>+ entityType: String<BR ALIGN="LEFT"/>+ entityId: String<BR ALIGN="LEFT"/>+ summary: String<BR ALIGN="LEFT"/>+ createdAt: Date<BR ALIGN="LEFT"/></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT"> </TD></TR></TABLE>>];
+
+  Role [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#fff6e0"><FONT POINT-SIZE="9"><I>&laquo;enumeration&raquo;</I></FONT><BR/><B>Role</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ ADMINISTRATOR<BR ALIGN="LEFT"/>+ MANAGER<BR ALIGN="LEFT"/>+ STAFF<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  DocStatus [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#fff6e0"><FONT POINT-SIZE="9"><I>&laquo;enumeration&raquo;</I></FONT><BR/><B>DocStatus</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ DRAFT<BR ALIGN="LEFT"/>+ COMPLETED<BR ALIGN="LEFT"/>+ CANCELLED<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  PaymentStatus [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#fff6e0"><FONT POINT-SIZE="9"><I>&laquo;enumeration&raquo;</I></FONT><BR/><B>PaymentStatus</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ PAID<BR ALIGN="LEFT"/>+ PARTIALLY_PAID<BR ALIGN="LEFT"/>+ UNPAID<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  PaymentMethod [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#fff6e0"><FONT POINT-SIZE="9"><I>&laquo;enumeration&raquo;</I></FONT><BR/><B>PaymentMethod</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ CASH<BR ALIGN="LEFT"/>+ MOBILE_BANKING<BR ALIGN="LEFT"/>+ CARD<BR ALIGN="LEFT"/>+ BANK_TRANSFER<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  MovementType [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#fff6e0"><FONT POINT-SIZE="9"><I>&laquo;enumeration&raquo;</I></FONT><BR/><B>MovementType</B></TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ OPENING_STOCK<BR ALIGN="LEFT"/>+ PURCHASE<BR ALIGN="LEFT"/>+ SALE<BR ALIGN="LEFT"/>+ CUSTOMER_RETURN<BR ALIGN="LEFT"/>+ SUPPLIER_RETURN<BR ALIGN="LEFT"/>+ DAMAGED<BR ALIGN="LEFT"/>+ ADJUSTMENT<BR ALIGN="LEFT"/>+ RETURN_CANCELLED<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+
+  Category -> Product [taillabel=" 1 ", headlabel=" 0..* ", xlabel="classifies", arrowhead=none];
+  Brand -> Product [taillabel=" 1 ", headlabel=" 0..* ", xlabel="makes", arrowhead=none];
+  Supplier -> Purchase [taillabel=" 1 ", headlabel=" 0..* ", xlabel="supplies", arrowhead=none];
+  Customer -> Sale [taillabel=" 0..1 ", headlabel=" 0..* ", xlabel="buys", arrowhead=none];
+  Sale -> SaleItem [taillabel=" 1 ", headlabel=" 1..* ", dir=both, arrowtail=diamond, arrowhead=none];
+  Purchase -> PurchaseItem [taillabel=" 1 ", headlabel=" 1..* ", dir=both, arrowtail=diamond, arrowhead=none];
+  Return -> ReturnItem [taillabel=" 1 ", headlabel=" 1..* ", dir=both, arrowtail=diamond, arrowhead=none];
+  SaleItem -> Product [taillabel=" 0..* ", headlabel=" 1 ", arrowhead=none];
+  PurchaseItem -> Product [taillabel=" 0..* ", headlabel=" 1 ", arrowhead=none];
+  ReturnItem -> Product [taillabel=" 0..* ", headlabel=" 1 ", arrowhead=none];
+  Sale -> Payment [taillabel=" 1 ", headlabel=" 0..* ", xlabel="paid by", arrowhead=none];
+  Purchase -> SupplierPayment [taillabel=" 1 ", headlabel=" 0..* ", xlabel="paid by", arrowhead=none];
+  Sale -> Return [taillabel=" 0..1 ", headlabel=" 0..* ", xlabel="customer return", arrowhead=none];
+  Purchase -> Return [taillabel=" 0..1 ", headlabel=" 0..* ", xlabel="supplier return", arrowhead=none];
+  Product -> StockMovement [taillabel=" 1 ", headlabel=" 0..* ", xlabel="history", arrowhead=none];
+  User -> AuditLog [taillabel=" 1 ", headlabel=" 0..* ", xlabel="performs", arrowhead=none];
+  User -> Role [style=dashed, arrowhead=vee, color="#888888"];
+  Sale -> DocStatus [style=dashed, arrowhead=vee, color="#888888"];
+  Sale -> PaymentStatus [style=dashed, arrowhead=vee, color="#888888"];
+  Payment -> PaymentMethod [style=dashed, arrowhead=vee, color="#888888"];
+  StockMovement -> MovementType [style=dashed, arrowhead=vee, color="#888888"];
+  { rank=same; Role; DocStatus; PaymentStatus; PaymentMethod; MovementType; }
+  { rank=same; Category; Brand; }
+  note [shape=note, style=filled, fillcolor="#fffbe6", fontsize=9, label="Sale, Purchase, Payment, SupplierPayment,\nReturn and StockMovement also store\ncreatedBy: User (who did it)."];
+  note -> User [style=dotted, arrowhead=none, color="#888888"];
+}

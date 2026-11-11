@@ -1,0 +1,79 @@
+// Activity Diagram: Sales process (create, complete, collect payment)
+// Follows server/src/controllers/saleController.js and paymentController.js
+// Render: dot -Tpdf activity-sale.dot -o activity-sale.pdf
+digraph SaleActivity {
+  graph [rankdir=TB, fontname="Latin Modern Roman,10 Regular", fontsize=13, nodesep=0.35, ranksep=0.32,
+         newrank=true, splines=ortho, pad=0.2, labelloc=t];
+  node  [fontname="Latin Modern Roman,10 Regular", fontsize=11, shape=box, style="rounded,filled",
+         fillcolor=white, width=2.3, height=0.42, margin="0.12,0.05"];
+  edge  [fontname="Latin Modern Roman,10 Regular", fontsize=10, arrowsize=0.7];
+
+  subgraph cluster_user {
+    label=<<b>Staff / Manager</b>>; style="rounded"; color=gray50; margin=14;
+    start [shape=circle, style=filled, fillcolor=black, label="", width=0.22, height=0.22];
+    open      [label="Open New sale"];
+    hasCust   [shape=diamond, style=filled, fillcolor=white, label="", width=0.38, height=0.38];
+    pickCust  [label="Select customer"];
+    pickMeth  [label="Choose walk-in\npayment method"];
+    merge1    [shape=diamond, style=filled, fillcolor=white, label="", width=0.3, height=0.3];
+    addItems  [label="Search products,\nenter quantities, discount"];
+    review    [label="Review draft sale"];
+    decide    [shape=diamond, style=filled, fillcolor=white, label="", width=0.38, height=0.38];
+    cancel    [label="Cancel draft\n(Manager only)"];
+    pressDone [label="Press Complete"];
+    print     [label="Print invoice\n(optional)"];
+    owes      [shape=diamond, style=filled, fillcolor=white, label="", width=0.38, height=0.38];
+    collect   [label="Collect payment\n(amount, method)"];
+    showErr   [label="See error:\n\"Not enough stock\"", fillcolor="#fdecea"];
+    end1 [shape=doublecircle, style=filled, fillcolor=black, label="", width=0.14, height=0.14];
+    end2 [shape=doublecircle, style=filled, fillcolor=black, label="", width=0.14, height=0.14];
+    end3 [shape=doublecircle, style=filled, fillcolor=black, label="", width=0.14, height=0.14];
+  }
+
+  subgraph cluster_system {
+    label=<<b>System (Express API + MongoDB)</b>>; style="rounded"; color=gray50; margin=14;
+    validate  [label="Validate input; take prices\nfrom product records"];
+    saveDraft [label="Save sale as DRAFT\n(stock not changed yet)"];
+    markCancel[label="Mark sale CANCELLED"];
+    subgraph cluster_tx {
+      label=<<i>One MongoDB transaction</i>>; style="dashed,rounded"; color=gray40; margin=10;
+      enough    [shape=diamond, style=filled, fillcolor=white, label="", width=0.38, height=0.38];
+      decrease  [label="Decrease stock, write\nSALE stock movement,\nsave cost price"];
+      walkin    [shape=diamond, style=filled, fillcolor=white, label="", width=0.38, height=0.38];
+      autoPay   [label="Record full payment;\nstatus PAID"];
+      unpaid    [label="Outstanding = total;\nstatus UNPAID"];
+      merge2    [shape=diamond, style=filled, fillcolor=white, label="", width=0.3, height=0.3];
+      completed [label="Mark sale COMPLETED"];
+      rollback  [label="Roll back:\nnothing is saved", fillcolor="#fdecea"];
+    }
+    audit     [label="Write audit log"];
+    checkAmt  [shape=diamond, style=filled, fillcolor=white, label="", width=0.38, height=0.38];
+    reject    [label="Reject: more than\nthe outstanding amount", fillcolor="#fdecea"];
+    savePay   [label="Save payment; update paid,\noutstanding and status"];
+  }
+
+  start -> open -> hasCust;
+  hasCust -> pickCust [xlabel="[known customer]"];
+  hasCust -> pickMeth [xlabel="[walk-in]"];
+  pickCust -> merge1; pickMeth -> merge1;
+  merge1 -> addItems -> validate -> saveDraft -> review -> decide;
+  decide -> cancel    [xlabel="[cancel]"];
+  cancel -> markCancel -> end1;
+  decide -> pressDone [xlabel="[complete]"];
+  pressDone -> enough;
+  enough -> rollback  [xlabel="[stock < quantity]"];
+  rollback -> showErr -> end2;
+  enough -> decrease  [xlabel="[stock is enough]"];
+  decrease -> walkin;
+  walkin -> autoPay [xlabel="[walk-in]"];
+  walkin -> unpaid  [xlabel="[named customer]"];
+  autoPay -> merge2; unpaid -> merge2;
+  merge2 -> completed -> audit -> print -> owes;
+  owes -> end3    [xlabel="[fully paid]"];
+  owes -> collect [xlabel="[amount due]"];
+  collect -> checkAmt;
+  checkAmt -> reject  [xlabel="[too much]"];
+  checkAmt -> savePay [xlabel="[ok]"];
+  reject -> collect [constraint=false];
+  savePay -> owes [constraint=false];
+}
