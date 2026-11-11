@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 export const RETURN_KINDS = ["CUSTOMER", "SUPPLIER"];
+export const RETURN_STATUSES = ["ACTIVE", "CANCELLED"];
 
 const returnItemSchema = new mongoose.Schema(
   {
@@ -37,6 +38,12 @@ const returnSchema = new mongoose.Schema(
     // The method used for the cash refund
     refundMethod: { type: String, default: null },
     reason: { type: String, required: true, trim: true, maxlength: 300 },
+    // A cancelled return is kept for the records, but its stock and balance changes are undone
+    // Returns saved before this field existed have no status and count as ACTIVE
+    status: { type: String, enum: RETURN_STATUSES, default: "ACTIVE", index: true },
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    cancelReason: { type: String, trim: true, maxlength: 300, default: "" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

@@ -38,6 +38,7 @@ export const MOVEMENT_LABEL: Record<string, string> = {
   SUPPLIER_RETURN: 'Return to supplier',
   DAMAGED: 'Damaged / lost',
   ADJUSTMENT: 'Adjustment',
+  RETURN_CANCELLED: 'Return cancelled',
 }
 
 export type StockState = 'OK' | 'LOW' | 'OUT'

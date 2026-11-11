@@ -9,11 +9,13 @@ import { Button } from '@/components/ui/button'
 import { ProductPicker } from '@/components/product-picker'
 import { rowAction } from '@/components/ui/row-action'
 import {
+  METHOD_LABEL,
   PAYMENT_LABEL,
   STATUS_CLASS,
   STATUS_LABEL,
   formatDate,
   inputClass,
+  type PaymentMethod,
   type Product,
   type Ref,
   type Sale,
@@ -112,7 +114,9 @@ export function SalesPage({ canManage }: { canManage: boolean }) {
   async function runAction(sale: Sale, action: 'complete' | 'cancel') {
     const confirmText =
       action === 'complete'
-        ? `${sale.saleNumber} will reduce stock when completed. Are you sure?`
+        ? sale.customer
+          ? `${sale.saleNumber} will reduce stock when completed. Are you sure?`
+          : `${sale.saleNumber} will reduce stock, and the walk-in customer pays ${formatMoney(sale.outstandingAmount)} in full now. Are you sure?`
         : `Do you want to cancel sale ${sale.saleNumber}?`
     if (!window.confirm(confirmText)) return
 
@@ -122,7 +126,13 @@ export function SalesPage({ canManage }: { canManage: boolean }) {
 
     try {
       await apiRequest(`/sales/${sale._id}/${action}`, { method: 'POST' })
-      reload(action === 'complete' ? `${sale.saleNumber} completed.` : `${sale.saleNumber} cancelled.`)
+      reload(
+        action === 'complete'
+          ? sale.customer
+            ? `${sale.saleNumber} completed.`
+            : `${sale.saleNumber} completed and paid in full.`
+          : `${sale.saleNumber} cancelled.`
+      )
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not complete the action.')
     } finally {
@@ -322,6 +332,7 @@ function NewSaleModal({
   onCreated: (saleNumber: string) => void
 }) {
   const [customerId, setCustomerId] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
   const [rows, setRows] = useState<DraftRow[]>([{ product: null, quantity: '1' }])
   const [discount, setDiscount] = useState('')
   const [notes, setNotes] = useState('')
@@ -386,6 +397,7 @@ function NewSaleModal({
         method: 'POST',
         body: {
           customer: customerId || null,
+          ...(customerId ? {} : { paymentMethod }),
           items: selected.map((row) => ({ productId: row.product._id, quantity: Number(row.quantity) })),
           discount: safeDiscount,
           notes: notes.trim(),
@@ -409,6 +421,16 @@ function NewSaleModal({
               .map((customer) => <option key={customer._id} value={customer._id}>{customer.name}</option>)}
           </select>
         </Field>
+
+        {!customerId && (
+          <Field label="Payment method (a walk-in customer pays the full amount when the sale is completed)">
+            <select className={inputClass + ' bg-white'} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
+              {(Object.keys(METHOD_LABEL) as PaymentMethod[]).map((key) => (
+                <option key={key} value={key}>{METHOD_LABEL[key]}</option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-gray-700">Products</p>

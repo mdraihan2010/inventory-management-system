@@ -31,7 +31,8 @@ function newReturnNumber() {
 // Total quantity of each product already returned by customers for this sale
 async function returnedQuantities(saleId, session) {
   const rows = await Return.aggregate([
-    { $match: { kind: "CUSTOMER", sale: saleId } },
+    // Cancelled returns do not count, so those products can be returned again
+    { $match: { kind: "CUSTOMER", sale: saleId, status: { $ne: "CANCELLED" } } },
     { $unwind: "$items" },
     { $group: { _id: "$items.product", returned: { $sum: "$items.quantity" } } },
   ]).session(session);
@@ -282,6 +283,7 @@ export async function getReturns(req, res) {
         .populate("customer", "name")
         .populate("supplier", "name companyName")
         .populate("createdBy", "name")
+        .populate("cancelledBy", "name")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),

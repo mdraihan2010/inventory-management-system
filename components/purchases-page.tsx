@@ -9,14 +9,17 @@ import { rowAction } from '@/components/ui/row-action'
 import {
   STATUS_CLASS,
   STATUS_LABEL,
+  SUPPLIER_PAYMENT_LABEL,
   formatDate,
   inputClass,
+  purchaseOutstanding,
+  supplierPaymentStatus,
   type ProductRef,
   type PurchaseDetail,
   type PurchaseRow,
   type SupplierRef,
 } from '@/components/purchases-shared'
-import { PurchaseDetailModal } from '@/components/purchases-modals'
+import { PurchaseDetailModal, SupplierPaymentModal } from '@/components/purchases-modals'
 import { ProductPicker } from '@/components/product-picker'
 
 type ListResponse<T> = {
@@ -59,6 +62,7 @@ function PurchasesManager() {
   const [notice, setNotice] = useState('')
   const [creating, setCreating] = useState(false)
   const [detailRow, setDetailRow] = useState<PurchaseRow | null>(null)
+  const [payRow, setPayRow] = useState<PurchaseRow | null>(null)
 
   useEffect(() => {
     apiRequest<ListResponse<SupplierRef>>('/suppliers')
@@ -175,21 +179,26 @@ function PurchasesManager() {
                 <th>Supplier</th>
                 <th>Date</th>
                 <th>Total</th>
+                <th>Outstanding</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={6}>Loading...</td></tr>}
-              {!loading && purchases.length === 0 && <tr><td colSpan={6}>No purchases found.</td></tr>}
+              {loading && <tr><td colSpan={7}>Loading...</td></tr>}
+              {!loading && purchases.length === 0 && <tr><td colSpan={7}>No purchases found.</td></tr>}
               {!loading && purchases.map((purchase) => (
                 <tr key={purchase._id}>
                   <td><strong className="ref-code">{purchase.purchaseNumber}</strong></td>
                   <td>{supplierLabel(purchase)}</td>
                   <td>{formatDate(purchase.purchaseDate)}</td>
                   <td>{formatMoney(purchase.grandTotal)}</td>
+                  <td>{purchase.status === 'COMPLETED' ? formatMoney(purchaseOutstanding(purchase)) : '—'}</td>
                   <td>
                     <span className={`status ${STATUS_CLASS[purchase.status]}`}>{STATUS_LABEL[purchase.status]}</span>
+                    {purchase.status === 'COMPLETED' && (
+                      <span className="mt-1 block text-xs text-gray-500">{SUPPLIER_PAYMENT_LABEL[supplierPaymentStatus(purchase)]}</span>
+                    )}
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
@@ -198,6 +207,9 @@ function PurchasesManager() {
                         <button className={rowAction.success} disabled={busyId === purchase._id} onClick={() => runAction(purchase, 'complete')}>
                           Complete
                         </button>
+                      )}
+                      {purchase.status === 'COMPLETED' && purchaseOutstanding(purchase) > 0 && (
+                        <button className={rowAction.success} onClick={() => setPayRow(purchase)}>Pay supplier</button>
                       )}
                       {purchase.status === 'DRAFT' && (
                         <button className={rowAction.danger} disabled={busyId === purchase._id} onClick={() => runAction(purchase, 'cancel')}>
@@ -232,6 +244,18 @@ function PurchasesManager() {
           onCreated={(purchaseNumber) => {
             setCreating(false)
             reload(`Draft purchase created: ${purchaseNumber}`)
+          }}
+        />
+      )}
+
+      {payRow && (
+        <SupplierPaymentModal
+          purchase={payRow}
+          supplierName={supplierLabel(payRow)}
+          onClose={() => setPayRow(null)}
+          onPaid={(message) => {
+            setPayRow(null)
+            reload(message)
           }}
         />
       )}

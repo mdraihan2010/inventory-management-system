@@ -4,6 +4,7 @@ import Sale from "../models/Sale.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
+import Payment, { PAYMENT_METHODS } from "../models/Payment.js";
 import { logAudit } from "../utils/auditLogger.js";
 
 const STATUSES = ["DRAFT", "COMPLETED", "CANCELLED"];
@@ -48,6 +49,18 @@ export async function createSale(req, res) {
         return res.status(400).json({ success: false, message: "Customer is inactive" });
       }
       customerId = customer._id;
+    }
+
+    // A walk-in sale must say how the customer pays, because it is paid in full when completed
+    let walkInPaymentMethod = null;
+    if (!customerId) {
+      walkInPaymentMethod = body.paymentMethod === undefined || body.paymentMethod === "" ? "CASH" : body.paymentMethod;
+      if (!PAYMENT_METHODS.includes(walkInPaymentMethod)) {
+        return res.status(400).json({
+          success: false,
+          message: `Payment method must be one of: ${PAYMENT_METHODS.join(", ")}`,
+        });
+      }
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
@@ -115,6 +128,7 @@ export async function createSale(req, res) {
       paidAmount,
       outstandingAmount: grandTotal,
       paymentStatus: paymentStatusFor(grandTotal, paidAmount),
+      walkInPaymentMethod,
       notes: body.notes,
       createdBy: req.user._id,
     });
@@ -253,9 +267,32 @@ async function completeInsideTransaction(saleId, userId, session) {
     });
   }
 
+  const update = { items: updatedItems };
+
+  // A walk-in customer pays the full amount now. Nobody can be asked for the money later,
+  // so a walk-in sale never leaves an outstanding balance
+  if (!sale.customer && sale.outstandingAmount > 0) {
+    await Payment.create(
+      [
+        {
+          sale: sale._id,
+          customer: null,
+          amount: sale.outstandingAmount,
+          method: sale.walkInPaymentMethod || "CASH",
+          reference: "Walk-in sale, paid in full at the counter",
+          createdBy: userId,
+        },
+      ],
+      { session }
+    );
+    update.paidAmount = roundMoney(sale.paidAmount + sale.outstandingAmount);
+    update.outstandingAmount = 0;
+    update.paymentStatus = "PAID";
+  }
+
   const saved = await Sale.findOneAndUpdate(
     { _id: saleId },
-    { $set: { items: updatedItems } },
+    { $set: update },
     { returnDocument: "after", session }
   );
 
@@ -285,7 +322,9 @@ export async function completeSale(req, res) {
       action: "COMPLETE",
       entityType: "Sale",
       entityId: completed._id,
-      summary: `Completed sale ${completed.saleNumber} for ${completed.grandTotal}`,
+      summary: completed.customer
+        ? `Completed sale ${completed.saleNumber} for ${completed.grandTotal}`
+        : `Completed walk-in sale ${completed.saleNumber} for ${completed.grandTotal}, paid in full`,
     });
 
     res.status(200).json({

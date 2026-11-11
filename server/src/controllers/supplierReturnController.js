@@ -30,7 +30,7 @@ function newReturnNumber() {
 // Total quantity of each product already returned to suppliers for this purchase
 async function returnedToSupplier(purchaseId, session) {
   const rows = await Return.aggregate([
-    { $match: { kind: "SUPPLIER", purchase: purchaseId } },
+    { $match: { kind: "SUPPLIER", purchase: purchaseId, status: { $ne: "CANCELLED" } } },
     { $unwind: "$items" },
     { $group: { _id: "$items.product", returned: { $sum: "$items.quantity" } } },
   ]).session(session);

@@ -17,7 +17,9 @@ An inventory, sales and purchase management system. It covers products, stock, s
 - Stock, stock history and low-stock alerts
 - Purchases: draft, complete (stock increases) and cancel
 - Sales: draft, complete (stock decreases and purchase cost is saved) and cancel
-- Payments (partial or full) and customer dues
+- Payments (partial or full) and customer dues (walk-in sales are paid in full when completed)
+- Payments to suppliers, with what is still owed on each purchase and per supplier
+- Cancel a return that was saved by mistake (stock and balances are restored)
 - Customer and supplier management
 - Returns: customer returns (balance adjustment and cash refund) and returns to suppliers
 - Reports: sales, purchases, profit and stock value, with a date range
@@ -81,7 +83,16 @@ cd server
 pnpm test
 ```
 
-The tests do not need a database. They check the JWT check, the role check, the login rate limit and the stock adjustment validation.
+These tests do not need a database. They check the JWT check, the role check, the login rate limit and input validation.
+
+To test the money flows (walk-in sales, cancelling returns, supplier payments) against a real database:
+
+```bash
+cd server
+pnpm test:integration
+```
+
+This uses the cluster in `server/.env`, but creates a separate database called `stockpilot_integration_test` and deletes it at the end. The app's own data is not touched.
 
 ## Create the first Administrator
 
@@ -152,10 +163,10 @@ The free Render server sleeps when it is not used. The first request can take 2 
 
 ## Known limitations
 
-- A saved return cannot be cancelled.
+- A return that handed cash back to the customer cannot be cancelled, because the system cannot take the cash back. Other returns can be cancelled from the Returns page.
 - Cash refunds do not appear in the payment list. They are shown on the Returns page and in the reports.
-- Payments to suppliers are not tracked yet.
-- Walk-in sales cannot be linked to a person, so their dues cannot be tracked to an individual.
+- If products are returned to a supplier after the purchase was fully paid, the money the supplier owes us back is not tracked.
+- Walk-in sales made before walk-in sales had to be paid in full may still show an outstanding amount that cannot be linked to a person.
 - The dashboard's "today" uses the browser's time zone. Report date ranges use Bangladesh time (UTC+6).
 - Sign-in is stored per browser tab (`sessionStorage`), so each tab needs its own sign-in.
 

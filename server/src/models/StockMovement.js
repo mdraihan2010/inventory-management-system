@@ -8,6 +8,8 @@ export const MOVEMENT_TYPES = [
   "SUPPLIER_RETURN",
   "DAMAGED",
   "ADJUSTMENT",
+  // Undoes the stock change of a return that was cancelled
+  "RETURN_CANCELLED",
 ];
 
 const stockMovementSchema = new mongoose.Schema(

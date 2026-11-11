@@ -40,7 +40,11 @@ function cashRefundLookup() {
         {
           $match: {
             $expr: {
-              $and: [{ $eq: ["$sale", "$$saleId"] }, { $eq: ["$kind", "CUSTOMER"] }],
+              $and: [
+                { $eq: ["$sale", "$$saleId"] },
+                { $eq: ["$kind", "CUSTOMER"] },
+                { $ne: ["$status", "CANCELLED"] },
+              ],
             },
           },
         },
@@ -218,7 +222,7 @@ export async function profitReport(req, res) {
     if (range) returnedMatch["saleDoc.saleDate"] = range;
 
     const [returned] = await Return.aggregate([
-      { $match: { kind: "CUSTOMER" } },
+      { $match: { kind: "CUSTOMER", status: { $ne: "CANCELLED" } } },
       { $lookup: { from: "sales", localField: "sale", foreignField: "_id", as: "saleDoc" } },
       { $unwind: "$saleDoc" },
       { $match: returnedMatch },

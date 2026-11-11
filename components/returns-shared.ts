@@ -17,6 +17,11 @@ export type ReturnRow = {
   refundMethod: string | null
   reason: string
   createdAt: string
+  // Older returns have no status and count as active
+  status?: 'ACTIVE' | 'CANCELLED'
+  cancelReason?: string
+  cancelledAt?: string | null
+  cancelledBy?: { _id: string; name: string } | null
 }
 
 export type SaleSource = {

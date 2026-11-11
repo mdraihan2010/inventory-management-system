@@ -1,7 +1,9 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Plus, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { rowAction } from '@/components/ui/row-action'
 import { ApiError, apiRequest } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
 import { NewReturnModal } from '@/components/returns-modal'
@@ -53,6 +55,7 @@ function ReturnsManager() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [creating, setCreating] = useState<ReturnKind | null>(null)
+  const [cancelling, setCancelling] = useState<ReturnRow | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -138,14 +141,18 @@ function ReturnsManager() {
                 <th>Balance adjusted</th>
                 <th>Cash refund</th>
                 <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={9}>Loading...</td></tr>}
-              {!loading && rows.length === 0 && <tr><td colSpan={9}>No returns found.</td></tr>}
-              {!loading && rows.map((row) => (
-                <tr key={row._id}>
-                  <td><strong className="ref-code">{row.returnNumber}</strong></td>
+              {loading && <tr><td colSpan={11}>Loading...</td></tr>}
+              {!loading && rows.length === 0 && <tr><td colSpan={11}>No returns found.</td></tr>}
+              {!loading && rows.map((row) => {
+                const isCancelled = row.status === 'CANCELLED'
+                return (
+                <tr key={row._id} className={isCancelled ? 'opacity-60' : ''}>
+                  <td className="whitespace-nowrap"><strong className="ref-code">{row.returnNumber}</strong></td>
                   <td>{KIND_LABEL[row.kind]}</td>
                   <td>{row.sale?.saleNumber ?? row.purchase?.purchaseNumber ?? '—'}</td>
                   <td>{partyLabel(row)}</td>
@@ -158,8 +165,29 @@ function ReturnsManager() {
                       : '—'}
                   </td>
                   <td>{formatDate(row.createdAt)}</td>
+                  <td>
+                    {isCancelled ? (
+                      <>
+                        <span className="status out-of-stock">Cancelled</span>
+                        {row.cancelReason && <span className="mt-1 block text-xs text-gray-500">{row.cancelReason}</span>}
+                      </>
+                    ) : (
+                      <span className="status in-stock">Active</span>
+                    )}
+                  </td>
+                  <td>
+                    {!isCancelled && row.cashRefund <= 0 && (
+                      <button className={rowAction.danger} onClick={() => setCancelling(row)}>Cancel</button>
+                    )}
+                    {!isCancelled && row.cashRefund > 0 && (
+                      <span className="text-xs text-gray-500" title="Cash was handed back, so this return cannot be cancelled">
+                        Cash refunded
+                      </span>
+                    )}
+                  </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -177,6 +205,18 @@ function ReturnsManager() {
         </div>
       </section>
 
+      {cancelling && (
+        <CancelReturnModal
+          row={cancelling}
+          onClose={() => setCancelling(null)}
+          onCancelled={(message) => {
+            setCancelling(null)
+            setNotice(message)
+            load()
+          }}
+        />
+      )}
+
       {creating && (
         <NewReturnModal
           kind={creating}
@@ -189,5 +229,86 @@ function ReturnsManager() {
         />
       )}
     </>
+  )
+}
+
+// Asks for a reason, then cancels the return. The server undoes the stock and balance changes
+function CancelReturnModal({
+  row,
+  onClose,
+  onCancelled,
+}: {
+  row: ReturnRow
+  onClose: () => void
+  onCancelled: (message: string) => void
+}) {
+  const [reason, setReason] = useState('')
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormError('')
+    if (!reason.trim()) {
+      setFormError('Write why this return is being cancelled.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await apiRequest(`/returns/${row._id}/cancel`, { method: 'POST', body: { reason: reason.trim() } })
+      onCancelled(`${row.returnNumber} cancelled. Stock and balances have been restored.`)
+    } catch (err) {
+      setFormError(errorText(err, 'Could not cancel the return.'))
+      setSaving(false)
+    }
+  }
+
+  const effect =
+    row.kind === 'CUSTOMER'
+      ? `The products go out of stock again and ${formatMoney(row.creditApplied)} is added back to the customer's balance.`
+      : 'The products come back into stock, and the purchase is no longer reduced by this return.'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg space-y-4 rounded-lg bg-white p-6 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Cancel {row.returnNumber}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-500">
+            <X />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="rounded-md bg-gray-50 p-3 text-sm">
+            <p><span className="text-gray-500">Products: </span>{row.items.map((item) => `${item.productName} × ${item.quantity}`).join(', ')}</p>
+            <p><span className="text-gray-500">Value: </span>{formatMoney(row.totalValue)}</p>
+            <p className="mt-2">{effect}</p>
+          </div>
+
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-gray-700">Reason *</span>
+            <input
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
+              value={reason}
+              maxLength={300}
+              placeholder="For example: saved against the wrong sale"
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </label>
+
+          {formError && <p className="text-sm text-red-600">{formError}</p>}
+
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm">
+              Keep return
+            </button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Cancelling...' : 'Cancel return'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }

@@ -5,6 +5,9 @@ import mongoose from "mongoose";
 import { protect, authorize } from "../src/middleware/authMiddleware.js";
 import authRoutes from "../src/routes/authRoutes.js";
 import { adjustStock } from "../src/controllers/inventoryController.js";
+import { cancelReturn } from "../src/controllers/returnCancelController.js";
+import { addSupplierPayment } from "../src/controllers/supplierPaymentController.js";
+import { createSale } from "../src/controllers/saleController.js";
 
 // These tests run without a database. Every path tested here is decided
 // before the code touches MongoDB, so no Atlas connection is needed
@@ -122,5 +125,68 @@ describe("adjustStock validation", () => {
     const res = await callAdjustStock({ productId: validId, type: "ADJUSTMENT", quantity: 2, reason: "  " });
     expect(res.statusCode).toBe(400);
     expect(res.body.message).toBe("A reason is required for stock adjustment");
+  });
+});
+
+// A fake response object, so a controller can be called without a server
+function fakeRes() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(data) { this.body = data; return this; },
+  };
+}
+const anyUser = () => ({ _id: new mongoose.Types.ObjectId(), role: "ADMINISTRATOR" });
+
+describe("cancel return validation", () => {
+  it("rejects an invalid return id", async () => {
+    const res = fakeRes();
+    await cancelReturn({ params: { id: "abc" }, body: { reason: "wrong sale" }, user: anyUser() }, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe("Invalid return id");
+  });
+
+  it("requires a reason", async () => {
+    const res = fakeRes();
+    const id = new mongoose.Types.ObjectId().toString();
+    await cancelReturn({ params: { id }, body: { reason: "   " }, user: anyUser() }, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe("A reason is required to cancel a return");
+  });
+});
+
+describe("supplier payment validation", () => {
+  const id = new mongoose.Types.ObjectId().toString();
+
+  it("rejects an invalid purchase id", async () => {
+    const res = fakeRes();
+    await addSupplierPayment({ params: { id: "abc" }, body: { amount: 10, method: "CASH" }, user: anyUser() }, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe("Invalid purchase id");
+  });
+
+  it("rejects an amount of zero", async () => {
+    const res = fakeRes();
+    await addSupplierPayment({ params: { id }, body: { amount: 0, method: "CASH" }, user: anyUser() }, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe("Amount must be greater than zero");
+  });
+
+  it("rejects an unknown payment method", async () => {
+    const res = fakeRes();
+    await addSupplierPayment({ params: { id }, body: { amount: 10, method: "GOLD" }, user: anyUser() }, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toMatch(/^Method must be one of/);
+  });
+});
+
+describe("walk-in sale validation", () => {
+  it("rejects an unknown payment method for a walk-in sale", async () => {
+    const res = fakeRes();
+    const body = { items: [{ productId: new mongoose.Types.ObjectId().toString(), quantity: 1 }], paymentMethod: "GOLD" };
+    await createSale({ body, user: anyUser() }, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toMatch(/^Payment method must be one of/);
   });
 });

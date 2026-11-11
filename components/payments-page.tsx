@@ -1,11 +1,22 @@
 ﻿'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CircleDollarSign, Receipt, WalletCards } from 'lucide-react'
+import { CircleDollarSign, Receipt, Truck, WalletCards } from 'lucide-react'
 import { ApiError, apiRequest, apiRequestAll } from '@/lib/api'
 import { formatMoney } from '@/lib/money'
+import { purchaseOutstanding, type PurchaseRow } from '@/components/purchases-shared'
 
-type Tab = 'payments' | 'dues'
+type Tab = 'payments' | 'dues' | 'suppliers'
+
+type SupplierDue = {
+  key: string
+  name: string
+  company: string
+  count: number
+  paid: number
+  outstanding: number
+  oldest: string
+}
 
 type PaymentMethod = 'CASH' | 'MOBILE_BANKING' | 'CARD' | 'BANK_TRANSFER'
 
@@ -108,6 +119,7 @@ function PaymentsManager() {
   const [sales, setSales] = useState<SaleRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [purchases, setPurchases] = useState<PurchaseRow[] | null>(null)
 
   useEffect(() => {
     Promise.allSettled([
@@ -157,6 +169,52 @@ function PaymentsManager() {
     if (tab === 'dues') loadDues()
   }, [tab, loadDues])
 
+  // Completed purchases are loaded once: they give the supplier card at the top and the supplier dues tab
+  const loadPurchases = useCallback(async () => {
+    try {
+      setPurchases(await apiRequestAll<PurchaseRow>('/purchases?status=COMPLETED'))
+    } catch (err) {
+      setPurchases([])
+      setError(errorText(err))
+    }
+  }, [])
+
+  useEffect(() => {
+    loadPurchases()
+  }, [loadPurchases])
+
+  // Group what we owe by supplier
+  const supplierDues = useMemo<SupplierDue[]>(() => {
+    const groups = new Map<string, SupplierDue>()
+    for (const purchase of purchases ?? []) {
+      const outstanding = purchaseOutstanding(purchase)
+      if (outstanding <= 0) continue
+      const supplier = typeof purchase.supplier === 'object' && purchase.supplier ? purchase.supplier : null
+      const key = supplier?._id ?? String(purchase.supplier ?? 'unknown')
+      const date = purchase.purchaseDate ?? ''
+      const existing = groups.get(key)
+      if (existing) {
+        existing.count += 1
+        existing.paid += purchase.paidAmount ?? 0
+        existing.outstanding += outstanding
+        if (date && date < existing.oldest) existing.oldest = date
+      } else {
+        groups.set(key, {
+          key,
+          name: supplier?.name ?? 'Unknown supplier',
+          company: (supplier as { companyName?: string } | null)?.companyName ?? '',
+          count: 1,
+          paid: purchase.paidAmount ?? 0,
+          outstanding,
+          oldest: date,
+        })
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) => b.outstanding - a.outstanding)
+  }, [purchases])
+
+  const owedToSuppliers = purchases === null ? null : supplierDues.reduce((sum, group) => sum + group.outstanding, 0)
+
   // Group the dues by customer. Walk-in sales are shown separately
   const dueGroups = useMemo<DueGroup[]>(() => {
     const groups = new Map<string, DueGroup>()
@@ -194,7 +252,7 @@ function PaymentsManager() {
         <div>
           <p className="eyebrow">Workspace / Payments &amp; Dues</p>
           <h1>Payments &amp; Dues</h1>
-          <p className="subheading">Payment history and who still owes money.</p>
+          <p className="subheading">Payment history, who still owes us money, and what we still owe suppliers.</p>
         </div>
       </div>
 
@@ -223,6 +281,14 @@ function PaymentsManager() {
             <small>Total payment records</small>
           </div>
         </article>
+        <article className="summary-card">
+          <div className="metric-icon purple"><Truck /></div>
+          <div className="metric-info">
+            <span>Owed to suppliers</span>
+            <strong>{owedToSuppliers === null ? '—' : formatMoney(owedToSuppliers)}</strong>
+            <small>Unpaid part of completed purchases</small>
+          </div>
+        </article>
       </section>
 
       <section className="panel table-panel">
@@ -239,6 +305,12 @@ function PaymentsManager() {
               className={`${buttonClass} ${tab === 'dues' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
             >
               Dues list
+            </button>
+            <button
+              onClick={() => setTab('suppliers')}
+              className={`${buttonClass} ${tab === 'suppliers' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+            >
+              Supplier dues
             </button>
           </div>
           {loading && <span className="text-sm text-gray-500">Loading...</span>}
@@ -324,11 +396,53 @@ function PaymentsManager() {
                   <span>Total outstanding</span>
                   <span>{formatMoney(dueTotal)}</span>
                 </div>
-                <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
-                  No customer was selected for walk-in sales, so it is not known who owes this amount.
-                  For future credit sales, select a customer.
-                </p>
+                {dueGroups.some((group) => group.key === 'walkin') && (
+                  <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+                    The walk-in amount comes from older sales, made before walk-in sales had to be paid in full.
+                    New walk-in sales are always paid when they are completed. For credit sales, select a customer.
+                  </p>
+                )}
               </div>
+            )}
+          </>
+        )}
+
+        {tab === 'suppliers' && (
+          <>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Supplier</th>
+                    <th>Company</th>
+                    <th>Unpaid purchases</th>
+                    <th>Paid so far</th>
+                    <th>We still owe</th>
+                    <th>Oldest unpaid date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchases === null && <tr><td colSpan={6}>Loading...</td></tr>}
+                  {purchases !== null && supplierDues.length === 0 && (
+                    <tr><td colSpan={6}>Nothing is owed to suppliers. All completed purchases are paid.</td></tr>
+                  )}
+                  {supplierDues.map((group) => (
+                    <tr key={group.key}>
+                      <td><strong>{group.name}</strong></td>
+                      <td>{group.company || '—'}</td>
+                      <td>{group.count}</td>
+                      <td>{formatMoney(group.paid)}</td>
+                      <td><strong className="text-red-600">{formatMoney(group.outstanding)}</strong></td>
+                      <td>{formatDate(group.oldest)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {supplierDues.length > 0 && (
+              <p className="px-4 py-3 text-xs text-gray-500">
+                To pay a supplier, open Purchases and press Pay supplier on the purchase.
+              </p>
             )}
           </>
         )}

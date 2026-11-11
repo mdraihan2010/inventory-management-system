@@ -8,6 +8,7 @@ import {
   createSupplierReturn,
   getReturnablePurchaseItems,
 } from "../controllers/supplierReturnController.js";
+import { cancelReturn } from "../controllers/returnCancelController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -24,5 +25,8 @@ router.post("/customer", protect, managersOnly, createCustomerReturn);
 // Supplier return
 router.get("/purchases/:purchaseId/returnable", protect, managersOnly, getReturnablePurchaseItems);
 router.post("/supplier", protect, managersOnly, createSupplierReturn);
+
+// Cancel a return that was saved by mistake
+router.post("/:id/cancel", protect, managersOnly, cancelReturn);
 
 export default router;

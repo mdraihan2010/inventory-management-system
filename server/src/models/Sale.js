@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { PAYMENT_METHODS } from "./Payment.js";
 
 const saleItemSchema = new mongoose.Schema(
   {
@@ -32,6 +33,8 @@ const saleSchema = new mongoose.Schema(
     paymentStatus: { type: String, enum: ["PAID", "PARTIALLY_PAID", "UNPAID"], default: "UNPAID" },
     status: { type: String, enum: ["DRAFT", "COMPLETED", "CANCELLED"], default: "DRAFT" },
     saleDate: { type: Date, default: Date.now },
+    // A walk-in customer has no record, so they pay the full amount when the sale is completed. This is how they pay
+    walkInPaymentMethod: { type: String, enum: PAYMENT_METHODS, default: null },
     notes: { type: String, trim: true, maxlength: 500, default: "" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
