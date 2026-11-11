@@ -1,0 +1,1124 @@
+% Database Implementation: Inventory Management System (StockPilot)
+% Compile with: pdflatex database-queries.tex   (run twice for the table of contents)
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{amssymb}
+\usepackage{upquote}
+\usepackage{listings}
+\usepackage{needspace}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Inventory Management System}
+\fancyhead[R]{Database Implementation}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14pt}
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{0pt}
+\setlist{itemsep=0.15em, topsep=0.3em}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\definecolor{querybg}{HTML}{F1F4F8}
+\definecolor{rule}{HTML}{B8C0CC}
+\lstdefinestyle{query}{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{querybg}, columns=fullflexible,
+  keepspaces=true, breaklines=true, showstringspaces=false, frame=single, rulecolor=\color{querybg},
+  framesep=5pt, xleftmargin=6pt, xrightmargin=6pt, aboveskip=0.6em, belowskip=0.6em
+}
+\lstdefinestyle{result}{
+  basicstyle=\ttfamily\footnotesize, columns=fullflexible, keepspaces=true, breaklines=true,
+  showstringspaces=false, frame=leftline, framerule=1.5pt, rulecolor=\color{rule},
+  framesep=8pt, xleftmargin=12pt, aboveskip=0.3em, belowskip=0.8em
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\LARGE\bfseries Inventory Management System\par}
+  \vspace{0.4cm}
+  {\Large Using MERN Stack\par}
+  \vspace{1.5cm}
+  {\Large\bfseries Step 2: Database Implementation\par}
+  \vspace{0.4cm}
+  {\large Database Creation, Queries,\\ Execution and Testing\par}
+  \vfill
+  {\large Web Engineering Lab Project\par}
+  \vspace{0.3cm}
+  {\large Jashore University of Science and Technology\par}
+  \vspace{2cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+This document covers the second step of the project, \textbf{Database Implementation}. It has three parts:
+\begin{enumerate}
+  \item \textbf{Create the database:} where the database is, which collections it has and how they are created.
+  \item \textbf{Write the queries:} 35 queries in six groups (Create, Read, Update, Delete, Aggregation and Index).
+  \item \textbf{Execute and test:} every query is shown with its expected result, and a checklist is given at the end.
+\end{enumerate}
+The database is \textbf{MongoDB}, a document database. The comparison below helps readers who know SQL.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{SQL (relational)} & \textbf{MongoDB (document)} \\
+\midrule
+Database & Database \\
+Table & Collection \\
+Row & Document (JSON-like object) \\
+Column & Field \\
+Primary key & \code{\_id} (created automatically) \\
+Foreign key & Reference: the \code{\_id} of another document \\
+JOIN & \code{\$lookup} stage, or embedded documents \\
+\code{SELECT ... WHERE} & \code{find(\{ filter \})} \\
+\code{GROUP BY} & \code{\$group} stage of an aggregation \\
+\bottomrule
+\end{tabular}
+\caption{SQL terms and the matching MongoDB terms}
+\end{table}
+
+\section{Database Creation}
+
+\subsection{Platform}
+The database is hosted on \textbf{MongoDB Atlas}, the cloud service of MongoDB. The cluster runs in the AWS Mumbai region (\code{ap-south-1}) as a replica set of three nodes, so the data is stored in three copies. The database name is \code{inventory\_management\_system}.
+
+The backend (Node.js with Express) connects to the database with the Mongoose library. The connection string is kept in the environment variable \code{MONGO\_URI} on the server. It is never written in the source code.
+
+\subsection{Collections}
+The database has 13 collections. Their fields and relationships are shown in the database diagram of Step 1.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{@{}P{3.4cm}Y@{}}
+\toprule
+\textbf{Collection} & \textbf{What it stores} \\
+\midrule
+\code{users} & User accounts with a role (Administrator, Manager or Sales Staff) \\
+\code{categories} & Product categories, for example Smartphone or Laptop \\
+\code{brands} & Product brands, for example Samsung or Dell \\
+\code{products} & Products with SKU, prices, current stock and minimum stock level \\
+\code{customers} & Customers who can buy on credit \\
+\code{suppliers} & Suppliers from whom products are bought \\
+\code{sales} & Sales, with the sold lines embedded in the \code{items} array \\
+\code{payments} & Money received from customers for a sale \\
+\code{purchases} & Purchases from suppliers, with the lines embedded in \code{items} \\
+\code{supplierpayments} & Money paid to suppliers for a purchase \\
+\code{returns} & Products returned by customers or sent back to suppliers \\
+\code{stockmovements} & History of every stock change (sale, purchase, return, adjustment) \\
+\code{auditlogs} & Who did what and when \\
+\bottomrule
+\end{tabularx}
+\caption{Collections of the database}
+\end{table}
+
+\subsection{How the collections are created}
+MongoDB has no \code{CREATE TABLE} command. A collection is created automatically when the first document is inserted. The structure and the rules of each collection are written in the backend as a \textbf{Mongoose schema} (folder \code{server/src/models}). A part of the product schema is shown below.
+
+\begin{lstlisting}[style=query]
+const productSchema = new mongoose.Schema(
+  {
+    name:          { type: String, required: true, trim: true, maxlength: 150 },
+    sku:           { type: String, required: true, unique: true, uppercase: true },
+    category:      { type: ObjectId, ref: "Category", required: true },
+    brand:         { type: ObjectId, ref: "Brand", required: true },
+    purchasePrice: { type: Number, min: 0, default: 0 },
+    sellingPrice:  { type: Number, required: true, min: 0 },
+    currentStock:  { type: Number, min: 0, default: 0 },
+    minStockLevel: { type: Number, min: 0, default: 0 },
+    isActive:      { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+\end{lstlisting}
+
+The schema gives the same protection as constraints in SQL:
+\begin{itemize}
+  \item \code{required: true} works like \code{NOT NULL}.
+  \item \code{unique: true} creates a unique index, like a \code{UNIQUE} constraint.
+  \item \code{min: 0} stops negative prices and negative stock, like a \code{CHECK} constraint.
+  \item \code{ref: "Category"} marks a reference to another collection, like a foreign key.
+  \item \code{timestamps: true} adds \code{createdAt} and \code{updatedAt} to every document.
+\end{itemize}
+
+\subsection{Practice database}
+Create, Update and Delete queries change data. To keep the real data safe, the queries of this document are executed in a separate database named \code{stockpilot\_practice} on the same cluster. The script \code{seed-practice.js} fills it with a small set of sample data: 8 products, 4 categories, 4 brands, 3 customers, 2 suppliers, 6 sales and 4 purchases. The collection names and field names are the same as in the real database, so every query also works there.
+
+\section{How to Execute the Queries}
+The queries are written for \textbf{mongosh}, the MongoDB shell. The shell is built into MongoDB Compass.
+\begin{enumerate}
+  \item Open MongoDB Compass and connect to the Atlas cluster with the connection string.
+  \item Open the \textbf{mongosh} panel at the bottom of the window.
+  \item Type \code{use stockpilot\_practice} and press Enter.
+  \item Paste the whole file \code{seed-practice.js} and press Enter. The message \emph{Practice data is ready: 8 products, 6 sales, 4 purchases.} appears.
+  \item Open \code{queries.js}. Copy one block at a time, paste it and press Enter. Compare the output with the expected result in this document.
+\end{enumerate}
+
+Three points to remember:
+\begin{itemize}
+  \item \textbf{Run the queries in order.} Later results depend on earlier changes (for example, A9 includes the payment of U6). To start again, run \code{seed-practice.js} again.
+  \item When a block has several statements, this document shows the result of the \textbf{last} statement.
+  \item An \code{\_id} that MongoDB generates is different on every run, so it is shown here with three dots in place of the value. The shell may also break long lines at other places.
+\end{itemize}
+
+The Read, Aggregation and Index queries do not change anything. They can also be run on the real database (\code{use inventory\_management\_system}); the results will then show the real data.
+
+
+\section{Create Queries (Insert)}
+These queries add new documents. MongoDB creates a collection automatically when the first document is inserted, and it gives every document a unique \code{\_id}.
+
+\needspace{9\baselineskip}
+\subsection*{C1. Insert one category}
+\addcontentsline{toc}{subsection}{C1. Insert one category}
+\code{insertOne} adds a single document. The result shows the \code{\_id} that MongoDB generated (it will be different on every run).
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.categories.insertOne({
+  name: "Headphone",
+  description: "Wired and wireless headphones",
+  isActive: true
+})
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, insertedId: ObjectId('...') }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{C2. Insert several products at once}
+\addcontentsline{toc}{subsection}{C2. Insert several products at once}
+A product stores the \code{\_id} of its category and brand (a reference). So first the category and the brand are found by name, and then \code{insertMany} adds two products in one call.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+var headphone = db.categories.findOne({ name: "Headphone" });
+var jbl = db.brands.findOne({ name: "JBL" });
+
+db.products.insertMany([
+  { name: "JBL Tune 520BT", sku: "JBL-T520-001",
+    category: headphone._id, brand: jbl._id,
+    purchasePrice: 4200, sellingPrice: 5200, currentStock: 8, minStockLevel: 3,
+    unit: "pcs", isActive: true },
+  { name: "JBL Tune 110", sku: "JBL-T110-001",
+    category: headphone._id, brand: jbl._id,
+    purchasePrice: 700, sellingPrice: 950, currentStock: 25, minStockLevel: 10,
+    unit: "pcs", isActive: true }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, insertedIds: { '0': ObjectId('...'), '1': ObjectId('...') } }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{C3. Try to insert a duplicate SKU (must fail)}
+\addcontentsline{toc}{subsection}{C3. Try to insert a duplicate SKU (must fail)}
+The \code{sku} field has a unique index. This insert uses a SKU that already exists, so MongoDB rejects it with error \code{E11000}. This test proves that two products can never share one SKU.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.insertOne({
+  name: "Fake Galaxy",
+  sku: "SAM-S24-001",
+  sellingPrice: 1000
+})
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected error:}
+\begin{lstlisting}[style=result]
+MongoServerError: E11000 duplicate key error collection: stockpilot_practice.products index: sku_1 dup key: { sku: "SAM-S24-001" }
+\end{lstlisting}
+
+\section{Read Queries (Find)}
+These queries only read data, so they are safe to run on any database. The first argument of \code{find} is the filter (which documents), and the second is the projection (which fields to show).
+
+\needspace{9\baselineskip}
+\subsection*{R1. List all active products}
+\addcontentsline{toc}{subsection}{R1. List all active products}
+Filter: \code{isActive} is true. Projection: show only four fields and hide \code{\_id}. The result is sorted by name (1 means ascending).
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.find(
+  { isActive: true },
+  { _id: 0, name: 1, sku: 1, sellingPrice: 1, currentStock: 1 }
+).sort({ name: 1 })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { name: 'Dell Inspiron 15', sku: 'DEL-INS15-001', sellingPrice: 70000, currentStock: 6 },
+  {
+    name: 'Dell Latitude 5440',
+    sku: 'DEL-LAT5440-001',
+    sellingPrice: 110000,
+    currentStock: 0
+  },
+  { name: 'Galaxy A15', sku: 'SAM-A15-001', sellingPrice: 21000, currentStock: 12 },
+  { name: 'Galaxy S24', sku: 'SAM-S24-001', sellingPrice: 95000, currentStock: 3 },
+  { name: 'JBL Flip 6', sku: 'JBL-FLP6-001', sellingPrice: 12500, currentStock: 4 },
+  { name: 'JBL Go 3', sku: 'JBL-GO3-001', sellingPrice: 4000, currentStock: 15 },
+  { name: 'JBL Tune 110', sku: 'JBL-T110-001', sellingPrice: 950, currentStock: 25 },
+  { name: 'JBL Tune 520BT', sku: 'JBL-T520-001', sellingPrice: 5200, currentStock: 8 },
+  { name: 'M331 Silent Mouse', sku: 'LOG-M331-001', sellingPrice: 1800, currentStock: 30 }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R2. Find one product by its SKU}
+\addcontentsline{toc}{subsection}{R2. Find one product by its SKU}
+\code{findOne} returns a single document (or \code{null} when nothing matches). Because SKU is unique, this is the fastest way to open one product.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.findOne({ sku: "JBL-GO3-001" })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{
+  _id: ObjectId('650000000000000000000305'),
+  name: 'JBL Go 3',
+  sku: 'JBL-GO3-001',
+  category: ObjectId('650000000000000000000103'),
+  brand: ObjectId('650000000000000000000203'),
+  purchasePrice: 3200,
+  sellingPrice: 4000,
+  currentStock: 15,
+  minStockLevel: 5,
+  unit: 'pcs',
+  isActive: true
+}
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R3. Products in a price range}
+\addcontentsline{toc}{subsection}{R3. Products in a price range}
+\code{\$gte} means greater than or equal, \code{\$lte} means less than or equal. The result is sorted from the highest price to the lowest (-1 means descending).
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.find(
+  { sellingPrice: { $gte: 10000, $lte: 80000 } },
+  { _id: 0, name: 1, sellingPrice: 1 }
+).sort({ sellingPrice: -1 })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { name: 'Dell Inspiron 15', sellingPrice: 70000 },
+  { name: 'Galaxy A15', sellingPrice: 21000 },
+  { name: 'JBL Flip 6', sellingPrice: 12500 }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R4. Search products by name or SKU}
+\addcontentsline{toc}{subsection}{R4. Search products by name or SKU}
+\code{\$regex} matches a part of the text and option \code{i} ignores upper and lower case. \code{\$or} means that a match in the name or in the SKU is enough. The search box of the Products page works in the same way.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.find(
+  { $or: [
+      { name: { $regex: "galaxy", $options: "i" } },
+      { sku:  { $regex: "galaxy", $options: "i" } }
+  ] },
+  { _id: 0, name: 1, sku: 1 }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[ { name: 'Galaxy S24', sku: 'SAM-S24-001' }, { name: 'Galaxy A15', sku: 'SAM-A15-001' } ]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R5. Low stock and out of stock products}
+\addcontentsline{toc}{subsection}{R5. Low stock and out of stock products}
+Here two fields of the same document are compared, so \code{\$expr} is needed. A product is listed when its \code{currentStock} is less than or equal to its \code{minStockLevel}.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.find(
+  { isActive: true, $expr: { $lte: ["$currentStock", "$minStockLevel"] } },
+  { _id: 0, name: 1, currentStock: 1, minStockLevel: 1 }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { name: 'Galaxy S24', currentStock: 3, minStockLevel: 5 },
+  { name: 'Dell Latitude 5440', currentStock: 0, minStockLevel: 2 },
+  { name: 'JBL Flip 6', currentStock: 4, minStockLevel: 4 }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R6. Products of selected categories}
+\addcontentsline{toc}{subsection}{R6. Products of selected categories}
+\code{\$in} matches any value of a list. This query shows every product that is a Smartphone or a Laptop.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+var ids = db.categories.find({ name: { $in: ["Smartphone", "Laptop"] } })
+  .toArray().map(function (c) { return c._id; });
+
+db.products.find({ category: { $in: ids } }, { _id: 0, name: 1, sku: 1 })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { name: 'Galaxy S24', sku: 'SAM-S24-001' },
+  { name: 'Galaxy A15', sku: 'SAM-A15-001' },
+  { name: 'Dell Inspiron 15', sku: 'DEL-INS15-001' },
+  { name: 'Dell Latitude 5440', sku: 'DEL-LAT5440-001' }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R7. Count the completed sales}
+\addcontentsline{toc}{subsection}{R7. Count the completed sales}
+\code{countDocuments} returns only a number. There are 6 sales in total, but one is a draft and one is cancelled.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.countDocuments({ status: "COMPLETED" })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+4
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R8. All sales of one customer}
+\addcontentsline{toc}{subsection}{R8. All sales of one customer}
+The customer is found by name first. Then the sales that hold this customer's \code{\_id} are listed, newest first.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+var rahim = db.customers.findOne({ name: "Rahim Traders" });
+
+db.sales.find(
+  { customer: rahim._id },
+  { _id: 0, saleNumber: 1, grandTotal: 1, status: 1, paymentStatus: 1 }
+).sort({ saleDate: -1 })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { saleNumber: 'SAL-000005', grandTotal: 12000, status: 'DRAFT', paymentStatus: 'UNPAID' },
+  {
+    saleNumber: 'SAL-000001',
+    grandTotal: 98000,
+    status: 'COMPLETED',
+    paymentStatus: 'PARTIALLY_PAID'
+  }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R9. Completed sales that still have a due amount}
+\addcontentsline{toc}{subsection}{R9. Completed sales that still have a due amount}
+\code{\$gt} means greater than. Draft and cancelled sales are left out, because only a completed sale creates a real due.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.find(
+  { status: "COMPLETED", outstandingAmount: { $gt: 0 } },
+  { _id: 0, saleNumber: 1, grandTotal: 1, paidAmount: 1, outstandingAmount: 1 }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { saleNumber: 'SAL-000001', grandTotal: 98000, paidAmount: 50000, outstandingAmount: 48000 },
+  { saleNumber: 'SAL-000003', grandTotal: 82500, paidAmount: 0, outstandingAmount: 82500 }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R10. Sales in a date range}
+\addcontentsline{toc}{subsection}{R10. Sales in a date range}
+Dates are compared with \code{\$gte} (from) and \code{\$lt} (before). This query shows the completed sales from 1 November to 5 November 2026.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.find(
+  { status: "COMPLETED",
+    saleDate: { $gte: ISODate("2026-11-01T00:00:00Z"),
+                $lt:  ISODate("2026-11-06T00:00:00Z") } },
+  { _id: 0, saleNumber: 1, saleDate: 1, grandTotal: 1 }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  {
+    saleNumber: 'SAL-000001',
+    saleDate: ISODate('2026-11-02T05:00:00.000Z'),
+    grandTotal: 98000
+  },
+  {
+    saleNumber: 'SAL-000002',
+    saleDate: ISODate('2026-11-03T08:30:00.000Z'),
+    grandTotal: 8000
+  },
+  {
+    saleNumber: 'SAL-000003',
+    saleDate: ISODate('2026-11-05T10:00:00.000Z'),
+    grandTotal: 82500
+  }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R11. Search inside the items of a sale}
+\addcontentsline{toc}{subsection}{R11. Search inside the items of a sale}
+The products of a sale are stored inside the sale document, in the \code{items} array. \code{\$elemMatch} finds the sales where one single line is JBL Go 3 with a quantity of 2 or more.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.find(
+  { items: { $elemMatch: { sku: "JBL-GO3-001", quantity: { $gte: 2 } } } },
+  { _id: 0, saleNumber: 1, status: 1, "items.productName": 1, "items.quantity": 1 }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  {
+    saleNumber: 'SAL-000002',
+    status: 'COMPLETED',
+    items: [ { productName: 'JBL Go 3', quantity: 2 } ]
+  },
+  {
+    saleNumber: 'SAL-000005',
+    status: 'DRAFT',
+    items: [ { productName: 'JBL Go 3', quantity: 3 } ]
+  }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{R12. Pagination (page 2, three products per page)}
+\addcontentsline{toc}{subsection}{R12. Pagination (page 2, three products per page)}
+\code{skip} jumps over the first rows and \code{limit} sets the page size. For page number p the rule is skip = (p - 1) $\times$ limit. The Products page of the website uses the same rule with 25 products per page.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.find({}, { _id: 0, name: 1 })
+  .sort({ name: 1 })
+  .skip(3)
+  .limit(3)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[ { name: 'Galaxy S24' }, { name: 'JBL Flip 6' }, { name: 'JBL Go 3' } ]
+\end{lstlisting}
+
+\section{Update Queries}
+An update has two parts: a filter (which document) and the change. In the result, \code{matchedCount} is the number of documents found and \code{modifiedCount} is the number really changed.
+
+\needspace{9\baselineskip}
+\subsection*{U1. Change the price of a product}
+\addcontentsline{toc}{subsection}{U1. Change the price of a product}
+\code{\$set} changes only the named field. All other fields of the product stay the same.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.updateOne(
+  { sku: "JBL-GO3-001" },
+  { $set: { sellingPrice: 4200 } }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, insertedId: null, matchedCount: 1, modifiedCount: 1, upsertedCount: 0 }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{U2. Add stock when products arrive}
+\addcontentsline{toc}{subsection}{U2. Add stock when products arrive}
+\code{\$inc} adds a number to the current value inside the database. It is safer than reading the stock, adding in the program and writing it back, because two users can work at the same time. The second statement shows the new stock (4 + 10).
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.updateOne(
+  { sku: "JBL-FLP6-001" },
+  { $inc: { currentStock: 10 } }
+);
+
+db.products.findOne({ sku: "JBL-FLP6-001" }, { _id: 0, name: 1, currentStock: 1 })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ name: 'JBL Flip 6', currentStock: 14 }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{U3. Sell more than the stock (must fail)}
+\addcontentsline{toc}{subsection}{U3. Sell more than the stock (must fail)}
+Galaxy S24 has only 3 in stock. The filter says: update only if \code{currentStock} is 5 or more. No document matches, so nothing changes (\code{matchedCount} is 0) and the stock can never go below zero. The real project completes a sale with this same technique.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.updateOne(
+  { sku: "SAM-S24-001", currentStock: { $gte: 5 } },
+  { $inc: { currentStock: -5 } }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, insertedId: null, matchedCount: 0, modifiedCount: 0, upsertedCount: 0 }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{U4. Sell an available quantity (must succeed)}
+\addcontentsline{toc}{subsection}{U4. Sell an available quantity (must succeed)}
+The same query with quantity 2. Now the filter matches, so the stock goes down from 3 to 1. The check and the change happen in one step.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.updateOne(
+  { sku: "SAM-S24-001", currentStock: { $gte: 2 } },
+  { $inc: { currentStock: -2 } }
+);
+
+db.products.findOne({ sku: "SAM-S24-001" }, { _id: 0, name: 1, currentStock: 1 })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ name: 'Galaxy S24', currentStock: 1 }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{U5. Update many documents at once}
+\addcontentsline{toc}{subsection}{U5. Update many documents at once}
+\code{updateMany} changes every document that matches. Here the minimum stock level of all Logitech products is set to 15.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+var logitech = db.brands.findOne({ name: "Logitech" });
+
+db.products.updateMany(
+  { brand: logitech._id },
+  { $set: { minStockLevel: 15 } }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, insertedId: null, matchedCount: 2, modifiedCount: 2, upsertedCount: 0 }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{U6. Record a customer payment}
+\addcontentsline{toc}{subsection}{U6. Record a customer payment}
+Karim Electronics pays 30,000 for sale SAL-000003 (due 82,500). One document is added to \code{payments}, and the sale is updated: paid goes up, due goes down, and the status changes. In the real project these two steps run inside one transaction, so both succeed or both fail.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+var sale = db.sales.findOne({ saleNumber: "SAL-000003" });
+
+db.payments.insertOne({
+  sale: sale._id, customer: sale.customer,
+  amount: 30000, method: "CASH", reference: ""
+});
+
+db.sales.updateOne(
+  { _id: sale._id, outstandingAmount: { $gte: 30000 } },
+  { $inc: { paidAmount: 30000, outstandingAmount: -30000 },
+    $set: { paymentStatus: "PARTIALLY_PAID" } }
+);
+
+db.sales.findOne(
+  { saleNumber: "SAL-000003" },
+  { _id: 0, saleNumber: 1, paidAmount: 1, outstandingAmount: 1, paymentStatus: 1 }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{
+  saleNumber: 'SAL-000003',
+  paidAmount: 30000,
+  outstandingAmount: 52500,
+  paymentStatus: 'PARTIALLY_PAID'
+}
+\end{lstlisting}
+
+\section{Delete Queries}
+The real project never removes a product, customer or supplier, because old sales and purchases still point to them. It only switches them off (\code{isActive: false}). Real delete queries are shown here on the practice data only.
+
+\needspace{9\baselineskip}
+\subsection*{D1. Soft delete (what the application does)}
+\addcontentsline{toc}{subsection}{D1. Soft delete (what the application does)}
+The product is not removed. It is only marked as inactive, so it disappears from the sale form but old records stay correct.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.updateOne(
+  { sku: "JBL-T110-001" },
+  { $set: { isActive: false } }
+)
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, insertedId: null, matchedCount: 1, modifiedCount: 1, upsertedCount: 0 }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{D2. Delete one document}
+\addcontentsline{toc}{subsection}{D2. Delete one document}
+\code{deleteOne} removes the first document that matches the filter.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.deleteOne({ sku: "JBL-T110-001" })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, deletedCount: 1 }
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{D3. Delete many documents}
+\addcontentsline{toc}{subsection}{D3. Delete many documents}
+\code{deleteMany} removes every match. Here all inactive products with zero stock are removed (only Old Test Mouse matches). Always run the same filter with \code{find} first, to see what will be deleted.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.deleteMany({ isActive: false, currentStock: 0 })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ acknowledged: true, deletedCount: 1 }
+\end{lstlisting}
+
+\section{Aggregation Queries (Reports)}
+An aggregation is a pipeline: the documents pass through several stages, one after another. The most used stages are \code{\$match} (filter), \code{\$group} (calculate totals), \code{\$lookup} (join another collection), \code{\$unwind} (open an array), \code{\$project} (choose fields) and \code{\$sort}. The reports of the website are built this way.
+
+\needspace{9\baselineskip}
+\subsection*{A1. Number of products and total stock per category}
+\addcontentsline{toc}{subsection}{A1. Number of products and total stock per category}
+\code{\$lookup} joins each product with its category (like a JOIN in SQL). \code{\$unwind} turns the joined array into one object. \code{\$group} then counts the products and adds the stock for each category name.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.aggregate([
+  { $match: { isActive: true } },
+  { $lookup: { from: "categories", localField: "category",
+               foreignField: "_id", as: "category" } },
+  { $unwind: "$category" },
+  { $group: { _id: "$category.name",
+              products: { $sum: 1 },
+              totalStock: { $sum: "$currentStock" } } },
+  { $sort: { _id: 1 } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { _id: 'Headphone', products: 1, totalStock: 8 },
+  { _id: 'Laptop', products: 2, totalStock: 6 },
+  { _id: 'Mouse', products: 1, totalStock: 30 },
+  { _id: 'Smartphone', products: 2, totalStock: 13 },
+  { _id: 'Speaker', products: 2, totalStock: 29 }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A2. Total value of the stock}
+\addcontentsline{toc}{subsection}{A2. Total value of the stock}
+For every active product, stock is multiplied by purchase price, and all results are added. \code{\_id: null} means one single group for the whole collection.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.aggregate([
+  { $match: { isActive: true } },
+  { $group: { _id: null,
+              totalUnits: { $sum: "$currentStock" },
+              stockValue: { $sum: {
+                $multiply: ["$currentStock", "$purchasePrice"] } } } },
+  { $project: { _id: 0 } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[ { totalUnits: 86, stockValue: 943600 } ]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A3. Sales summary}
+\addcontentsline{toc}{subsection}{A3. Sales summary}
+Only completed sales are counted. This is the same calculation as the sales report of the website: number of sales, total sold, total received and total due.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.aggregate([
+  { $match: { status: "COMPLETED" } },
+  { $group: { _id: null,
+              count: { $sum: 1 },
+              totalSales: { $sum: "$grandTotal" },
+              totalPaid: { $sum: "$paidAmount" },
+              totalOutstanding: { $sum: "$outstandingAmount" } } },
+  { $project: { _id: 0 } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[ { count: 4, totalSales: 209500, totalPaid: 109000, totalOutstanding: 100500 } ]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A4. Due amount per customer}
+\addcontentsline{toc}{subsection}{A4. Due amount per customer}
+The unpaid completed sales are grouped by customer, and the customer name is added with \code{\$lookup}. The customer with the highest due comes first.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.aggregate([
+  { $match: { status: "COMPLETED", outstandingAmount: { $gt: 0 } } },
+  { $group: { _id: "$customer",
+              sales: { $sum: 1 },
+              totalDue: { $sum: "$outstandingAmount" } } },
+  { $lookup: { from: "customers", localField: "_id",
+               foreignField: "_id", as: "customer" } },
+  { $unwind: "$customer" },
+  { $project: { _id: 0, customer: "$customer.name", sales: 1, totalDue: 1 } },
+  { $sort: { totalDue: -1 } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { sales: 1, totalDue: 52500, customer: 'Karim Electronics' },
+  { sales: 1, totalDue: 48000, customer: 'Rahim Traders' }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A5. Best selling products}
+\addcontentsline{toc}{subsection}{A5. Best selling products}
+\code{\$unwind} makes one document for every line of the \code{items} array. Then the lines are grouped by product, and the quantity and the amount are added.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.aggregate([
+  { $match: { status: "COMPLETED" } },
+  { $unwind: "$items" },
+  { $group: { _id: "$items.productName",
+              quantitySold: { $sum: "$items.quantity" },
+              revenue: { $sum: "$items.lineTotal" } } },
+  { $sort: { quantitySold: -1, revenue: -1 } },
+  { $limit: 3 }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { _id: 'JBL Go 3', quantitySold: 2, revenue: 8000 },
+  { _id: 'M331 Silent Mouse', quantitySold: 2, revenue: 3600 },
+  { _id: 'Galaxy S24', quantitySold: 1, revenue: 95000 }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A6. Gross profit}
+\addcontentsline{toc}{subsection}{A6. Gross profit}
+Every sale line stores \code{costPrice}, the purchase price on the day of the sale. Profit of a line = (unit price - cost price) $\times$ quantity. Discounts are not subtracted here.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.aggregate([
+  { $match: { status: "COMPLETED" } },
+  { $unwind: "$items" },
+  { $group: { _id: null,
+              revenue: { $sum: "$items.lineTotal" },
+              cost: { $sum: {
+                $multiply: ["$items.costPrice", "$items.quantity"] } } } },
+  { $project: { _id: 0, revenue: 1, cost: 1,
+                grossProfit: { $subtract: ["$revenue", "$cost"] } } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[ { revenue: 210100, cost: 184700, grossProfit: 25400 } ]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A7. Sales per day (Bangladesh time)}
+\addcontentsline{toc}{subsection}{A7. Sales per day (Bangladesh time)}
+MongoDB stores dates in UTC. \code{\$dateToString} with the timezone \code{Asia/Dhaka} changes each date to the local day first. Sale SAL-000004 was saved at 19:30 UTC on 7 November, so it is correctly counted on 8 November.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.sales.aggregate([
+  { $match: { status: "COMPLETED" } },
+  { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$saleDate",
+                                      timezone: "Asia/Dhaka" } },
+              sales: { $sum: 1 },
+              total: { $sum: "$grandTotal" } } },
+  { $sort: { _id: 1 } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { _id: '2026-11-02', sales: 1, total: 98000 },
+  { _id: '2026-11-03', sales: 1, total: 8000 },
+  { _id: '2026-11-05', sales: 1, total: 82500 },
+  { _id: '2026-11-08', sales: 1, total: 21000 }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A8. Money owed to each supplier}
+\addcontentsline{toc}{subsection}{A8. Money owed to each supplier}
+For a purchase: outstanding = grand total - returned amount - paid amount. \code{\$subtract} calculates this for every completed purchase, and then it is added per supplier. Suppliers that are fully paid are left out.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.purchases.aggregate([
+  { $match: { status: "COMPLETED" } },
+  { $group: { _id: "$supplier",
+              purchases: { $sum: 1 },
+              owed: { $sum: { $subtract: [
+                { $subtract: ["$grandTotal", "$returnedAmount"] },
+                "$paidAmount" ] } } } },
+  { $match: { owed: { $gt: 0 } } },
+  { $lookup: { from: "suppliers", localField: "_id",
+               foreignField: "_id", as: "supplier" } },
+  { $unwind: "$supplier" },
+  { $project: { _id: 0, supplier: "$supplier.name", purchases: 1, owed: 1 } },
+  { $sort: { owed: -1 } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { purchases: 2, owed: 285000, supplier: 'Tech Supply BD' },
+  { purchases: 1, owed: 58500, supplier: 'Global Gadget Importers' }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{A9. Money received by payment method}
+\addcontentsline{toc}{subsection}{A9. Money received by payment method}
+The \code{payments} collection is grouped by \code{method}. The cash total includes the payment of 30,000 from query U6.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.payments.aggregate([
+  { $group: { _id: "$method",
+              payments: { $sum: 1 },
+              total: { $sum: "$amount" } } },
+  { $sort: { total: -1 } }
+])
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { _id: 'MOBILE_BANKING', payments: 1, total: 50000 },
+  { _id: 'CASH', payments: 2, total: 38000 },
+  { _id: 'CARD', payments: 1, total: 21000 }
+]
+\end{lstlisting}
+
+\section{Index Queries}
+An index works like the index at the back of a book: MongoDB can jump to the right document without reading the whole collection. A unique index also stops duplicate values.
+
+\needspace{9\baselineskip}
+\subsection*{I1. Show the indexes of a collection}
+\addcontentsline{toc}{subsection}{I1. Show the indexes of a collection}
+Every collection has an index on \code{\_id}. The products collection also has the unique index on \code{sku} that made query C3 fail.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+db.products.getIndexes()
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  { v: 2, key: { sku: 1 }, name: 'sku_1', unique: true }
+]
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\subsection*{I2. Check that a query uses the index}
+\addcontentsline{toc}{subsection}{I2. Check that a query uses the index}
+\code{explain} shows how MongoDB runs a query. With the SKU index, MongoDB reads only one document to find one product (\code{totalDocsExamined: 1}), even if the collection has 10,000 products. The winning plan shows the stage \code{IXSCAN} (in MongoDB 8 it can be \code{EXPRESS\_IXSCAN}). Without an index the stage would be \code{COLLSCAN}, which reads every document.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[style=query]
+var stats = db.products.find({ sku: "JBL-GO3-001" })
+  .explain("executionStats").executionStats;
+
+({ nReturned: stats.nReturned,
+   totalKeysExamined: stats.totalKeysExamined,
+   totalDocsExamined: stats.totalDocsExamined })
+\end{lstlisting}
+\end{minipage}
+
+\noindent\textbf{Expected result:}
+\begin{lstlisting}[style=result]
+{ nReturned: 1, totalKeysExamined: 1, totalDocsExamined: 1 }
+\end{lstlisting}
+
+
+\section{How the Application Uses These Queries}
+The website does not send queries from the browser. The frontend calls the REST API, and the backend runs the query with Mongoose. The table shows where the techniques of this document are used in the project.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{@{}P{1.6cm}P{5.2cm}Y@{}}
+\toprule
+\textbf{Query} & \textbf{Technique} & \textbf{Where it is used in the project} \\
+\midrule
+R4, R12 & Search with a regular expression, \code{skip} and \code{limit} & Product list API (\code{productController.js}): search box and pages of 25 products \\
+R5 & \code{\$expr} to compare two fields & Low stock filter of the Inventory page \\
+U3, U4 & Conditional update with \code{\$inc} & Completing a sale (\code{saleController.js}): stock can never go below zero \\
+U6 & Insert and update together & Recording a payment, inside a transaction \\
+D1 & Soft delete with \code{isActive} & Deactivating products, customers and suppliers \\
+A3, A6 & \code{\$match}, \code{\$unwind}, \code{\$group} & Sales report and profit report (\code{reportController.js}) \\
+A8 & Outstanding of a purchase & Supplier dues on the Payments page \\
+C3, I1 & Unique index & SKU of a product, sale number, purchase number \\
+\bottomrule
+\end{tabularx}
+\caption{Queries of this document and their use in the project}
+\end{table}
+
+\textbf{Transactions.} Some actions change several collections. Completing a sale reduces the stock of each product, adds stock movement records and updates the sale. These changes run inside one MongoDB transaction (\code{session.withTransaction}). If any step fails, for example because one product has too little stock, all changes are cancelled and the database stays correct.
+
+\section{Test Checklist}
+Each query is executed in the practice database, and the output is compared with the expected result of this document. The box is ticked when both are the same.
+
+\begin{longtable}{@{}P{1.2cm}P{10.6cm}c@{}}
+\toprule
+\textbf{ID} & \textbf{Query} & \textbf{Result matches} \\
+\midrule
+\endhead
+C1 & Insert one category & $\square$ \\
+C2 & Insert several products at once & $\square$ \\
+C3 & Try to insert a duplicate SKU (must fail) & $\square$ \\
+R1 & List all active products & $\square$ \\
+R2 & Find one product by its SKU & $\square$ \\
+R3 & Products in a price range & $\square$ \\
+R4 & Search products by name or SKU & $\square$ \\
+R5 & Low stock and out of stock products & $\square$ \\
+R6 & Products of selected categories & $\square$ \\
+R7 & Count the completed sales & $\square$ \\
+R8 & All sales of one customer & $\square$ \\
+R9 & Completed sales that still have a due amount & $\square$ \\
+R10 & Sales in a date range & $\square$ \\
+R11 & Search inside the items of a sale & $\square$ \\
+R12 & Pagination (page 2, three products per page) & $\square$ \\
+U1 & Change the price of a product & $\square$ \\
+U2 & Add stock when products arrive & $\square$ \\
+U3 & Sell more than the stock (must fail) & $\square$ \\
+U4 & Sell an available quantity (must succeed) & $\square$ \\
+U5 & Update many documents at once & $\square$ \\
+U6 & Record a customer payment & $\square$ \\
+D1 & Soft delete (what the application does) & $\square$ \\
+D2 & Delete one document & $\square$ \\
+D3 & Delete many documents & $\square$ \\
+A1 & Number of products and total stock per category & $\square$ \\
+A2 & Total value of the stock & $\square$ \\
+A3 & Sales summary & $\square$ \\
+A4 & Due amount per customer & $\square$ \\
+A5 & Best selling products & $\square$ \\
+A6 & Gross profit & $\square$ \\
+A7 & Sales per day (Bangladesh time) & $\square$ \\
+A8 & Money owed to each supplier & $\square$ \\
+A9 & Money received by payment method & $\square$ \\
+I1 & Show the indexes of a collection & $\square$ \\
+I2 & Check that a query uses the index & $\square$ \\
+\bottomrule
+\end{longtable}
+
+\end{document}
