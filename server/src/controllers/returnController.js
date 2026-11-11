@@ -175,7 +175,7 @@ export async function createCustomerReturn(req, res) {
         const product = await Product.findByIdAndUpdate(
           line.product,
           { $inc: { currentStock: line.quantity } },
-          { new: true, session }
+          { returnDocument: "after", session }
         );
         if (!product) {
           throw httpError(404, `Product ${line.productName} not found`);

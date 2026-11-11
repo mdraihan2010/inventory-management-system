@@ -58,7 +58,7 @@ export async function adjustStock(req, res) {
         product = await Product.findOneAndUpdate(
           filter,
           { $inc: { currentStock: change } },
-          { new: true, session }
+          { returnDocument: "after", session }
         );
 
         if (!product) {

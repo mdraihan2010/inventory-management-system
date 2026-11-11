@@ -98,7 +98,7 @@ export async function updateUserProfile(req, res) {
       return res.status(400).json({ success: false, message: "Nothing to update" });
     }
 
-    const user = await User.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+    const user = await User.findByIdAndUpdate(id, updates, { returnDocument: "after", runValidators: true });
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }

@@ -67,7 +67,7 @@ export async function updateCategory(req, res) {
     if (body.isActive !== undefined) allowed.isActive = body.isActive;
 
     const category = await Category.findByIdAndUpdate(id, allowed, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 

@@ -87,7 +87,7 @@ export async function updateSupplier(req, res) {
     }
 
     const supplier = await Supplier.findByIdAndUpdate(id, allowed, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 

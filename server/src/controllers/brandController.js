@@ -55,7 +55,7 @@ export async function updateBrand(req, res) {
     if (body.isActive !== undefined) allowed.isActive = body.isActive;
 
     const brand = await Brand.findByIdAndUpdate(id, allowed, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 

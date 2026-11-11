@@ -3,6 +3,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import express from "express";
 import request from "supertest";
 import mongoose from "mongoose";
+// The real server loads every model at start. The test loads User too, because payment history shows who paid
+import "../../src/models/User.js";
 import Category from "../../src/models/Category.js";
 import Brand from "../../src/models/Brand.js";
 import Product from "../../src/models/Product.js";
@@ -50,6 +52,18 @@ let product;
 let customer;
 let supplier;
 
+// Empties the test database one collection at a time.
+// Atlas users often may not drop a whole database, but they may drop collections they can write to
+async function clearTestDatabase() {
+  const db = mongoose.connection.db;
+  // Safety check: only ever touch the test database
+  if (db.databaseName !== TEST_DB) throw new Error(`Refusing to clear database ${db.databaseName}`);
+  const collections = await db.listCollections({}, { nameOnly: true }).toArray();
+  for (const { name } of collections) {
+    if (!name.startsWith("system.")) await db.dropCollection(name);
+  }
+}
+
 const stockOf = async () => (await Product.findById(product._id)).currentStock;
 
 async function makeSale(quantity, extra = {}) {
@@ -76,7 +90,7 @@ beforeAll(async () => {
   if (!process.env.MONGO_URI) throw new Error("MONGO_URI is missing in server/.env");
   await mongoose.connect(process.env.MONGO_URI, { dbName: TEST_DB });
   expect(mongoose.connection.db.databaseName).toBe(TEST_DB);
-  await mongoose.connection.db.dropDatabase();
+  await clearTestDatabase();
   // Collections must exist before they are used inside a transaction
   for (const model of [Category, Brand, Product, Customer, Supplier, Sale, Payment, Purchase, Return, StockMovement, SupplierPayment]) {
     await model.createCollection();
@@ -101,9 +115,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (mongoose.connection.readyState === 1) {
-    // Safety check: only ever delete the test database
+    // Remove everything the test created. An empty database disappears from Atlas on its own
     if (mongoose.connection.db.databaseName === TEST_DB) {
-      await mongoose.connection.db.dropDatabase();
+      await clearTestDatabase();
     }
     await mongoose.disconnect();
   }

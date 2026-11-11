@@ -163,7 +163,7 @@ export async function createSupplierReturn(req, res) {
         const product = await Product.findOneAndUpdate(
           { _id: line.product, currentStock: { $gte: line.quantity } },
           { $inc: { currentStock: -line.quantity } },
-          { new: true, session }
+          { returnDocument: "after", session }
         );
 
         if (!product) {

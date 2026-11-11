@@ -86,7 +86,7 @@ export async function updateCustomer(req, res) {
     }
 
     const customer = await Customer.findByIdAndUpdate(id, allowed, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 
