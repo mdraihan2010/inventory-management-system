@@ -1,0 +1,3190 @@
+{
+  "info": {
+    "name": "StockPilot API",
+    "description": "API tests for the Inventory Management System (StockPilot).\n\nRun the whole collection in order (Run collection). The requests depend on each other: the login saves the token, and created ids are saved for later requests.\n\nIMPORTANT: run it only against the API test server (pnpm dev:apitest, port 5050). That server uses the separate database stockpilot_api_test, so the real data is never changed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5050/api/v1"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@stockpilot.test"
+    },
+    {
+      "key": "adminPassword",
+      "value": "AdminPass123"
+    },
+    {
+      "key": "staffEmail",
+      "value": "staff@stockpilot.test"
+    },
+    {
+      "key": "staffPassword",
+      "value": "StaffPass123"
+    },
+    {
+      "key": "runId",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "staffToken",
+      "value": ""
+    },
+    {
+      "key": "newUserToken",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "brandId",
+      "value": ""
+    },
+    {
+      "key": "supplierId",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "purchaseId",
+      "value": ""
+    },
+    {
+      "key": "draftPurchaseId",
+      "value": ""
+    },
+    {
+      "key": "saleId",
+      "value": ""
+    },
+    {
+      "key": "bigSaleId",
+      "value": ""
+    },
+    {
+      "key": "walkInSaleId",
+      "value": ""
+    },
+    {
+      "key": "returnId",
+      "value": ""
+    },
+    {
+      "key": "newUserId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Health and Login",
+      "description": "The server is checked first. Then the Administrator and a Staff user log in, and Postman saves their tokens for all later requests.",
+      "item": [
+        {
+          "name": "T01 Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A new number for every run, so names, SKUs and emails never clash with an earlier run",
+                  "pm.collectionVariables.set(\"runId\", String(Date.now()).slice(-6));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "No token is needed. It shows that the server is running.\n\nExpected status: 200.\n\nSent as: no token.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "T02 Login with a wrong password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "A wrong password is refused.\n\nExpected status: 401.\n\nSent as: no token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T03 Login as Administrator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"token is saved\", () => {",
+                  "  const value = json.token;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"token\", value);",
+                  "});",
+                  "pm.test(\"role is ADMINISTRATOR\", () => pm.expect(json.user.role).to.eql(\"ADMINISTRATOR\"));",
+                  "pm.test(\"password hash is not sent\", () => pm.expect(json.user).to.not.have.property(\"passwordHash\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "The response contains a JWT token. Postman saves it in the variable token.\n\nExpected status: 200.\n\nSent as: no token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T04 Login as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"staffToken is saved\", () => {",
+                  "  const value = json.token;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"staffToken\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "The Staff token is used later to show that Staff cannot do manager work.\n\nExpected status: 200.\n\nSent as: no token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{staffEmail}}\",\n  \"password\": \"{{staffPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T05 Who am I",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"email matches\", () => pm.expect(json.user.email).to.eql(pm.collectionVariables.get(\"adminEmail\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Returns the user that owns the token.\n\nExpected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T06 Request without a token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products",
+            "description": "Every protected route refuses a request that has no token.\n\nExpected status: 401.\n\nSent as: no token.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Categories and Brands",
+      "description": "Master data that a product needs.",
+      "item": [
+        {
+          "name": "T07 Create category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"categoryId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"categoryId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/categories",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Category {{runId}}\",\n  \"description\": \"Created by Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T08 Create the same category again",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/categories",
+            "description": "A category name must be unique.\n\nExpected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Category {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T09 Create category without a name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/categories",
+            "description": "Validation: the name is required.\n\nExpected status: 400.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"No name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T10 List categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/categories",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T11 Update category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/categories/{{categoryId}}",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated by Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T12 Create brand",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"brandId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"brandId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/brands",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Brand {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T13 List brands",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/brands",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T14 Update brand",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/brands/{{brandId}}",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated by Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Suppliers and Customers",
+      "description": "The people the shop buys from and sells to.",
+      "item": [
+        {
+          "name": "T15 Create supplier",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"supplierId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"supplierId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/suppliers",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Supplier {{runId}}\",\n  \"companyName\": \"Test Supply Ltd.\",\n  \"phone\": \"01800{{runId}}\",\n  \"address\": \"Dhaka\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T16 Search suppliers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/suppliers?search=Test Supplier {{runId}}",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T17 Update supplier",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/suppliers/{{supplierId}}",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Pays on delivery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T18 Create customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"customerId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"customerId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/customers",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Customer {{runId}}\",\n  \"phone\": \"01700{{runId}}\",\n  \"address\": \"Jashore\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T19 Create customer with a bad email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/customers",
+            "description": "Validation: the email format is checked.\n\nExpected status: 400.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad Email Customer\",\n  \"email\": \"not-an-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T20 Search customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/customers?search=Test Customer {{runId}}",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T21 Update customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/customers/{{customerId}}",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Regular buyer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Products",
+      "description": "A new product starts with zero stock. Stock only changes through purchases, sales, returns and adjustments.",
+      "item": [
+        {
+          "name": "T22 Create product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"productId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"productId\", value);",
+                  "});",
+                  "pm.test(\"new product has zero stock\", () => pm.expect(json.data.currentStock).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Product {{runId}}\",\n  \"sku\": \"PM-{{runId}}\",\n  \"category\": \"{{categoryId}}\",\n  \"brand\": \"{{brandId}}\",\n  \"purchasePrice\": 500,\n  \"sellingPrice\": 750,\n  \"minStockLevel\": 5,\n  \"unit\": \"pcs\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T23 Create product with the same SKU",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "The unique index on SKU stops duplicates.\n\nExpected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Copy Product\",\n  \"sku\": \"PM-{{runId}}\",\n  \"category\": \"{{categoryId}}\",\n  \"brand\": \"{{brandId}}\",\n  \"sellingPrice\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T24 Create product as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Role check: only an Administrator or a Manager can create products.\n\nExpected status: 403.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Staff Product\",\n  \"sku\": \"STAFF-{{runId}}\",\n  \"category\": \"{{categoryId}}\",\n  \"brand\": \"{{brandId}}\",\n  \"sellingPrice\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T25 Search products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"one product found\", () => pm.expect(json.total).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products?search=PM-{{runId}}&limit=5",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T26 Get product by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T27 Get a product that does not exist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products/000000000000000000000000",
+            "description": "Expected status: 404.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T28 Update product price",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"price is 800\", () => pm.expect(json.data.sellingPrice).to.eql(800));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sellingPrice\": 800\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Purchases and Supplier Payments",
+      "description": "A purchase is first a draft. Completing it adds the stock. Payments to the supplier are recorded after that.",
+      "item": [
+        {
+          "name": "T29 Create purchase draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"purchaseId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"purchaseId\", value);",
+                  "});",
+                  "pm.test(\"status is DRAFT\", () => pm.expect(json.data.status).to.eql(\"DRAFT\"));",
+                  "pm.test(\"total is 10000\", () => pm.expect(json.data.grandTotal).to.eql(10000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/purchases",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier\": \"{{supplierId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 20,\n      \"unitPrice\": 500\n    }\n  ],\n  \"notes\": \"Postman test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T30 Pay a draft purchase",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}/payments",
+            "description": "A draft cannot be paid.\n\nExpected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"method\": \"CASH\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T31 Complete purchase",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}/complete",
+            "description": "Stock goes from 0 to 20 inside one transaction.\n\nExpected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T32 Complete the same purchase again",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}/complete",
+            "description": "Stock cannot be added twice.\n\nExpected status: 409.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T33 Pay supplier 4000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"6000 is still owed\", () => pm.expect(json.data.purchase.outstandingAmount).to.eql(6000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}/payments",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 4000,\n  \"method\": \"BANK_TRANSFER\",\n  \"reference\": \"TRX-{{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T34 Pay more than is owed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}/payments",
+            "description": "Overpayment is refused.\n\nExpected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 7000,\n  \"method\": \"CASH\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T35 Payment history of the purchase",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"total paid is 4000\", () => pm.expect(json.totalPaid).to.eql(4000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}/payments",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T36 List purchases",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/purchases?status=COMPLETED&limit=5",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T37 Get purchase by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T38 Create a second draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"draftPurchaseId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"draftPurchaseId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/purchases",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier\": \"{{supplierId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 5,\n      \"unitPrice\": 500\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T39 Cancel the draft purchase",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/purchases/{{draftPurchaseId}}/cancel",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T40 Cancel a completed purchase",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/purchases/{{purchaseId}}/cancel",
+            "description": "Only a draft can be cancelled.\n\nExpected status: 409.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T41 List purchases as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/purchases",
+            "description": "Role check: Staff cannot see purchases.\n\nExpected status: 403.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Inventory",
+      "description": "Manual stock changes and the stock history.",
+      "item": [
+        {
+          "name": "T42 Record one damaged unit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/inventory/adjustments",
+            "description": "Stock goes from 20 to 19.\n\nExpected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"type\": \"DAMAGED\",\n  \"quantity\": 1,\n  \"reason\": \"Broken in storage\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T43 Remove more than the stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/inventory/adjustments",
+            "description": "Stock can never go below zero.\n\nExpected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"type\": \"DAMAGED\",\n  \"quantity\": 999,\n  \"reason\": \"Too many\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T44 Stock history of the product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/inventory/movements?productId={{productId}}",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T45 Low stock alerts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/inventory/alerts",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Sales and Customer Payments",
+      "description": "A sale is first a draft. Completing it reduces the stock. A named customer can pay later; a walk-in sale is paid at once.",
+      "item": [
+        {
+          "name": "T46 Create sale draft for a customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"saleId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"saleId\", value);",
+                  "});",
+                  "pm.test(\"total is 1600\", () => pm.expect(json.data.grandTotal).to.eql(1600));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/sales",
+            "description": "Sent with the Staff token: Staff can sell. The price is taken from the product, not from the request.\n\nExpected status: 201.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": \"{{customerId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T47 Complete sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"sale is unpaid\", () => pm.expect(json.data.paymentStatus).to.eql(\"UNPAID\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{saleId}}/complete",
+            "description": "Stock goes from 19 to 17.\n\nExpected status: 200.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "T48 Customer pays 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"1100 is still due\", () => pm.expect(json.data.sale.outstandingAmount).to.eql(1100));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/sales/{{saleId}}/payments",
+            "description": "Expected status: 201.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500,\n  \"method\": \"MOBILE_BANKING\",\n  \"reference\": \"BKASH-{{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T49 Customer pays more than the due",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/sales/{{saleId}}/payments",
+            "description": "Overpayment is refused.\n\nExpected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"method\": \"CASH\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T50 Payment with a wrong method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/sales/{{saleId}}/payments",
+            "description": "Validation: the method must be one of the allowed values.\n\nExpected status: 400.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"method\": \"CHEQUE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T51 Payment history of the sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"total paid is 500\", () => pm.expect(json.totalPaid).to.eql(500));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{saleId}}/payments",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T52 Create a sale that is larger than the stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"bigSaleId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"bigSaleId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/sales",
+            "description": "A draft does not reserve stock, so it can be saved.\n\nExpected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": \"{{customerId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 999\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T53 Complete the oversized sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{bigSaleId}}/complete",
+            "description": "Not enough stock: the whole transaction is rolled back.\n\nExpected status: 409.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T54 Cancel a draft sale as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{bigSaleId}}/cancel",
+            "description": "Role check: only an Administrator or a Manager can cancel.\n\nExpected status: 403.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "T55 Cancel the draft sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{bigSaleId}}/cancel",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T56 Cancel a completed sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{saleId}}/cancel",
+            "description": "A completed sale needs a return instead.\n\nExpected status: 409.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T57 Create walk-in sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"walkInSaleId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"walkInSaleId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/sales",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"CASH\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T58 Complete walk-in sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"walk-in sale is paid in full\", () => pm.expect(json.data.paymentStatus).to.eql(\"PAID\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{walkInSaleId}}/complete",
+            "description": "Stock goes from 17 to 16. The full amount is recorded as paid.\n\nExpected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T59 List sales",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sales?status=COMPLETED&limit=5",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T60 Get sale by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sales/{{saleId}}",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Returns",
+      "description": "Products that a customer brings back, or that are sent back to a supplier. A return saved by mistake can be cancelled.",
+      "item": [
+        {
+          "name": "T61 What can be returned from the sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/returns/sales/{{saleId}}/returnable",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T62 Customer returns one unit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"returnId is saved\", () => {",
+                  "  const value = json.data.return._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"returnId\", value);",
+                  "});",
+                  "pm.test(\"due falls to 300\", () => pm.expect(json.data.sale.outstandingAmount).to.eql(300));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/returns/customer",
+            "description": "Stock goes from 16 to 17, and the customer owes 800 less.\n\nExpected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"saleId\": \"{{saleId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"reason\": \"Wrong colour\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T63 Return without a reason",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/returns/customer",
+            "description": "Validation: a reason is required.\n\nExpected status: 400.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"saleId\": \"{{saleId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T64 Cancel the customer return",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"status is CANCELLED\", () => pm.expect(json.data.status).to.eql(\"CANCELLED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/returns/{{returnId}}/cancel",
+            "description": "Stock goes back to 16 and the due goes back to 1100.\n\nExpected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Saved by mistake\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T65 Cancel the same return again",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/returns/{{returnId}}/cancel",
+            "description": "Expected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Again\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T66 What can be returned from the purchase",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/returns/purchases/{{purchaseId}}/returnable",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T67 Return one unit to the supplier",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/returns/supplier",
+            "description": "Stock goes from 16 to 15, and 500 less is owed to the supplier.\n\nExpected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purchaseId\": \"{{purchaseId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"reason\": \"Damaged in box\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T68 List returns",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/returns?kind=CUSTOMER&limit=5",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T69 Final stock of the product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"stock is 15 after all steps\", () => pm.expect(json.data.currentStock).to.eql(15));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "0 + 20 (purchase) - 1 (damaged) - 2 (sale) - 1 (walk-in) + 1 (return) - 1 (return cancelled) - 1 (supplier return) = 15.\n\nExpected status: 200.\n\nSent as: admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Payments, Reports and Audit Log",
+      "description": "Read-only routes for managers.",
+      "item": [
+        {
+          "name": "T70 All customer payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/payments?limit=5",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T71 Sales report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/reports/sales?from=2026-01-01&to=2030-12-31",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T72 Sales report with a bad date",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/reports/sales?from=yesterday",
+            "description": "Validation: dates must be YYYY-MM-DD.\n\nExpected status: 400.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T73 Purchases report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/reports/purchases",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T74 Stock value report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/reports/stock-value",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T75 Profit report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/reports/profit",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T76 Reports as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/reports/sales",
+            "description": "Role check: Staff cannot see reports.\n\nExpected status: 403.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "T77 Audit log",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs?limit=5",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T78 Audit log as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs",
+            "description": "Expected status: 403.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Users and Accounts",
+      "description": "Only the Administrator manages users. The last requests use a user that was created in this run, so no real account is changed.",
+      "item": [
+        {
+          "name": "T79 List users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users",
+            "description": "Expected status: 200.\n\nSent as: admin."
+          }
+        },
+        {
+          "name": "T80 List users as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users",
+            "description": "Expected status: 403.\n\nSent as: staff.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "T81 Create user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"newUserId is saved\", () => {",
+                  "  const value = json.data._id;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"newUserId\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "description": "Expected status: 201.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"user{{runId}}@stockpilot.test\",\n  \"password\": \"FirstPass123\",\n  \"role\": \"STAFF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T82 Create user with a short password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "description": "Validation: at least 8 characters.\n\nExpected status: 400.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Weak User\",\n  \"email\": \"weak{{runId}}@stockpilot.test\",\n  \"password\": \"123\",\n  \"role\": \"STAFF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T83 Create user with the same email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "description": "Expected status: 409.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Copy User\",\n  \"email\": \"user{{runId}}@stockpilot.test\",\n  \"password\": \"FirstPass123\",\n  \"role\": \"STAFF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T84 Change the role of the user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{newUserId}}",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"MANAGER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T85 Change the name of the user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/accounts/{{newUserId}}/profile",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Manager\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T86 Set a temporary password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/accounts/{{newUserId}}/reset-password",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temporaryPassword\": \"TempPass123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T87 New user logs in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));",
+                  "pm.test(\"newUserToken is saved\", () => {",
+                  "  const value = json.token;",
+                  "  pm.expect(value).to.be.a(\"string\");",
+                  "  pm.collectionVariables.set(\"newUserToken\", value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Expected status: 200.\n\nSent as: no token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user{{runId}}@stockpilot.test\",\n  \"password\": \"TempPass123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T88 New user changes the password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/change-password",
+            "description": "Expected status: 200.\n\nSent as: newUser.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{newUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"TempPass123\",\n  \"newPassword\": \"MyOwnPass123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T89 Change password with a wrong current password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/change-password",
+            "description": "Expected status: 401.\n\nSent as: newUser.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{newUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"not-my-password\",\n  \"newPassword\": \"AnotherPass123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T90 New user changes the email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/accounts/change-email",
+            "description": "Expected status: 200.\n\nSent as: newUser.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{newUserToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"MyOwnPass123\",\n  \"newEmail\": \"moved{{runId}}@stockpilot.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T91 Deactivate the user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is true\", () => pm.expect(json.success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{newUserId}}",
+            "description": "Expected status: 200.\n\nSent as: admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "T92 Deactivated user uses the old token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { /* not JSON */ }",
+                  "pm.test(\"success is false\", () => pm.expect(json.success).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "The token is still valid, but the server checks the user on every request.\n\nExpected status: 401.\n\nSent as: newUser.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{newUserToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

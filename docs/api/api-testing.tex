@@ -1,0 +1,625 @@
+% Backend and API Testing: Inventory Management System (StockPilot)
+% Compile with: pdflatex api-testing.tex   (run twice for the table of contents)
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{amssymb}
+\usepackage{upquote}
+\usepackage{listings}
+\usepackage{needspace}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Inventory Management System}
+\fancyhead[R]{Backend Development and API Testing}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14pt}
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{0pt}
+\setlist{itemsep=0.15em, topsep=0.3em}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\definecolor{querybg}{HTML}{F1F4F8}
+\definecolor{rule}{HTML}{B8C0CC}
+\lstdefinestyle{query}{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{querybg}, columns=fullflexible,
+  keepspaces=true, breaklines=true, showstringspaces=false, frame=single, rulecolor=\color{querybg},
+  framesep=5pt, xleftmargin=6pt, xrightmargin=6pt, aboveskip=0.6em, belowskip=0.6em
+}
+\lstdefinestyle{result}{
+  basicstyle=\ttfamily\footnotesize, columns=fullflexible, keepspaces=true, breaklines=true,
+  showstringspaces=false, frame=leftline, framerule=1.5pt, rulecolor=\color{rule},
+  framesep=8pt, xleftmargin=12pt, aboveskip=0.3em, belowskip=0.8em
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\LARGE\bfseries Inventory Management System\par}
+  \vspace{0.4cm}
+  {\Large Using MERN Stack\par}
+  \vspace{1.5cm}
+  {\Large\bfseries Step 3: Backend Development\par}
+  \vspace{0.4cm}
+  {\large Backend Design, REST API\\ and API Testing with Postman\par}
+  \vfill
+  {\large Web Engineering Lab Project\par}
+  \vspace{0.3cm}
+  {\large Jashore University of Science and Technology\par}
+  \vspace{2cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+This document covers the third step of the project, \textbf{Backend Development}. It has two parts:
+\begin{enumerate}
+  \item \textbf{Develop the backend:} the server that stands between the frontend and the database. It offers 55 API routes.
+  \item \textbf{Test the APIs with Postman:} 92 test requests with 217 automatic checks. All of them passed.
+\end{enumerate}
+An \textbf{API} (Application Programming Interface) is a fixed way to ask the server for something. The frontend sends an HTTP request to a URL, the backend reads or changes the database, and it sends back a JSON answer. \textbf{Postman} is a tool that sends such requests directly, without the frontend, so the backend can be tested alone.
+
+\section{Backend Design}
+\subsection{Technology}
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{@{}P{3.6cm}Y@{}}
+\toprule
+\textbf{Tool} & \textbf{Use in the project} \\
+\midrule
+Node.js & Runs JavaScript on the server \\
+Express 5 & Web framework: routes, middleware, JSON requests and responses \\
+MongoDB with Mongoose 9 & Database and the library that defines schemas and runs queries \\
+JSON Web Token (JWT) & Proves who the user is after login \\
+bcryptjs & Stores passwords as hashes, never as plain text \\
+helmet, cors, express-rate-limit & Security headers, allowed frontend address, limit on login attempts \\
+Vitest & Unit tests and integration tests \\
+\bottomrule
+\end{tabularx}
+\caption{Technology of the backend}
+\end{table}
+
+\subsection{Folder structure}
+The code is split by responsibility, so every file has one clear job.
+\begin{lstlisting}[style=query]
+server/
+  src/
+    server.js        starts Express, adds security and the routes
+    config/          database connection
+    routes/          15 files: URL + who is allowed
+    middleware/      protect (token check), authorize (role check)
+    controllers/     the work of each API: validate, query, respond
+    models/          13 Mongoose schemas (the collections)
+    utils/           audit log helper
+    scripts/         create admin, CSV imports, API test server
+  tests/             unit tests and integration tests
+\end{lstlisting}
+
+\subsection{How a request is handled}
+Example: the frontend asks to complete a sale (\code{POST /api/v1/sales/:id/complete}).
+\begin{enumerate}
+  \item \textbf{Route.} Express finds the matching route in \code{salesRoutes.js}.
+  \item \textbf{protect.} The middleware reads the token from the \code{Authorization} header and checks it. Without a valid token the answer is 401.
+  \item \textbf{authorize.} The middleware checks the role of the user. If the role is not allowed the answer is 403.
+  \item \textbf{Controller.} \code{saleController.js} validates the input. Wrong input gives 400.
+  \item \textbf{Model and database.} The controller changes the data through the Mongoose models. Stock, stock history and the sale are changed inside one transaction. If there is not enough stock, everything is rolled back and the answer is 409.
+  \item \textbf{Response.} The controller sends a JSON answer with a status code, and the action is written to the audit log.
+\end{enumerate}
+
+\subsection{Response format}
+Every answer has the same shape, so the frontend can handle all APIs in one way.
+\begin{lstlisting}[style=query]
+// success
+{ "success": true, "message": "Product created", "data": { ... } }
+
+// error
+{ "success": false, "message": "SKU already exists" }
+\end{lstlisting}
+
+\subsection{Status codes}
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{@{}P{2.6cm}Y@{}}
+\toprule
+\textbf{Code} & \textbf{Meaning in this project} \\
+\midrule
+200 OK & The request worked (read, update or an action) \\
+201 Created & A new record was created \\
+400 Bad Request & The input is wrong or missing (validation) \\
+401 Unauthorized & No token, a wrong token, or a wrong password \\
+403 Forbidden & The user is logged in, but the role is not allowed \\
+404 Not Found & The record does not exist \\
+409 Conflict & The request breaks a business rule: duplicate SKU, not enough stock, overpayment, completing twice \\
+429 Too Many Requests & More than 10 login attempts in 15 minutes \\
+\bottomrule
+\end{tabularx}
+\caption{HTTP status codes used by the API}
+\end{table}
+
+\section{Authentication and Roles}
+\subsection{Login with JWT}
+\begin{enumerate}
+  \item The user sends email and password to \code{POST /auth/login}.
+  \item The server compares the password with the stored bcrypt hash.
+  \item If it matches, the server signs a token that holds the user id and the role. The token is valid for one day.
+  \item The frontend sends this token in the header of every later request:\\ \code{Authorization: Bearer <token>}
+  \item On every request the server checks the token and also checks that the user still exists and is active. A deactivated user is blocked at once (test T92).
+\end{enumerate}
+
+\subsection{Roles}
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{@{}P{3cm}Y@{}}
+\toprule
+\textbf{Role} & \textbf{What the role can do} \\
+\midrule
+Administrator & Everything, including users and the audit log \\
+Manager & Products, purchases, supplier payments, returns, stock adjustments and reports \\
+Staff & Sales, customer payments, new customers, and reading products and stock \\
+\bottomrule
+\end{tabularx}
+\caption{The three roles}
+\end{table}
+
+\section{API Reference}
+All paths start with \code{/api/v1}. The backend has 55 routes. The column \emph{Who} shows which role may call the route.
+
+\begin{longtable}{@{}P{1.45cm}P{5.1cm}P{2.5cm}P{5.25cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Path} & \textbf{Who} & \textbf{Purpose} \\
+\midrule
+\endhead
+\multicolumn{4}{@{}l}{\textbf{Health and Authentication}} \\
+\textsc{get} & \code{/\allowbreak{}health} & Public & Shows that the server is running \\
+\textsc{post} & \code{/\allowbreak{}auth/\allowbreak{}login} & Public & Checks email and password, returns a JWT token \\
+\textsc{get} & \code{/\allowbreak{}auth/\allowbreak{}me} & Any user & Returns the user that owns the token \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Users and Accounts}} \\
+\textsc{get} & \code{/\allowbreak{}users} & Admin & List of all users \\
+\textsc{post} & \code{/\allowbreak{}users} & Admin & Create a user with a role \\
+\textsc{patch} & \code{/\allowbreak{}users/\allowbreak{}:id} & Admin & Change the role, or activate / deactivate a user \\
+\textsc{post} & \code{/\allowbreak{}users/\allowbreak{}change-password} & Any user & A user changes their own password \\
+\textsc{post} & \code{/\allowbreak{}accounts/\allowbreak{}change-email} & Any user & A user changes their own email \\
+\textsc{patch} & \code{/\allowbreak{}accounts/\allowbreak{}:id/\allowbreak{}profile} & Admin & Change the name or email of a user \\
+\textsc{post} & \code{/\allowbreak{}accounts/\allowbreak{}:id/\allowbreak{}reset-password} & Admin & Set a temporary password for a user \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Categories and Brands}} \\
+\textsc{get} & \code{/\allowbreak{}categories} & Any user & List of categories \\
+\textsc{post} & \code{/\allowbreak{}categories} & Admin, Manager & Create a category \\
+\textsc{patch} & \code{/\allowbreak{}categories/\allowbreak{}:id} & Admin, Manager & Update a category \\
+\textsc{get} & \code{/\allowbreak{}brands} & Any user & List of brands \\
+\textsc{post} & \code{/\allowbreak{}brands} & Admin, Manager & Create a brand \\
+\textsc{patch} & \code{/\allowbreak{}brands/\allowbreak{}:id} & Admin, Manager & Update a brand \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Products}} \\
+\textsc{get} & \code{/\allowbreak{}products} & Any user & List with search, stock filter and pages \\
+\textsc{get} & \code{/\allowbreak{}products/\allowbreak{}:id} & Any user & One product \\
+\textsc{post} & \code{/\allowbreak{}products} & Admin, Manager & Create a product (stock starts at zero) \\
+\textsc{patch} & \code{/\allowbreak{}products/\allowbreak{}:id} & Admin, Manager & Update a product \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Customers and Suppliers}} \\
+\textsc{get} & \code{/\allowbreak{}customers} & Any user & List with search and pages \\
+\textsc{post} & \code{/\allowbreak{}customers} & Any user & Create a customer \\
+\textsc{patch} & \code{/\allowbreak{}customers/\allowbreak{}:id} & Admin, Manager & Update a customer \\
+\textsc{get} & \code{/\allowbreak{}suppliers} & Any user & List with search and pages \\
+\textsc{post} & \code{/\allowbreak{}suppliers} & Admin, Manager & Create a supplier \\
+\textsc{patch} & \code{/\allowbreak{}suppliers/\allowbreak{}:id} & Admin, Manager & Update a supplier \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Inventory}} \\
+\textsc{post} & \code{/\allowbreak{}inventory/\allowbreak{}adjustments} & Admin, Manager & Change stock by hand, with a reason \\
+\textsc{get} & \code{/\allowbreak{}inventory/\allowbreak{}movements} & Any user & History of stock changes \\
+\textsc{get} & \code{/\allowbreak{}inventory/\allowbreak{}alerts} & Any user & Low stock and out of stock products \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Purchases}} \\
+\textsc{get} & \code{/\allowbreak{}purchases} & Admin, Manager & List of purchases \\
+\textsc{post} & \code{/\allowbreak{}purchases} & Admin, Manager & Create a purchase draft \\
+\textsc{get} & \code{/\allowbreak{}purchases/\allowbreak{}:id} & Admin, Manager & One purchase \\
+\textsc{post} & \code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}complete} & Admin, Manager & Complete a draft: stock is added \\
+\textsc{post} & \code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}cancel} & Admin, Manager & Cancel a draft \\
+\textsc{post} & \code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}payments} & Admin, Manager & Record a payment to the supplier \\
+\textsc{get} & \code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}payments} & Admin, Manager & Payments of one purchase \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Sales and Payments}} \\
+\textsc{get} & \code{/\allowbreak{}sales} & Any user & List of sales \\
+\textsc{post} & \code{/\allowbreak{}sales} & Any user & Create a sale draft \\
+\textsc{get} & \code{/\allowbreak{}sales/\allowbreak{}:id} & Any user & One sale \\
+\textsc{post} & \code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}complete} & Any user & Complete a draft: stock is reduced \\
+\textsc{post} & \code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}cancel} & Admin, Manager & Cancel a draft \\
+\textsc{post} & \code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}payments} & Any user & Record a payment from the customer \\
+\textsc{get} & \code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}payments} & Any user & Payments of one sale \\
+\textsc{get} & \code{/\allowbreak{}payments} & Admin, Manager & All customer payments \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Returns}} \\
+\textsc{get} & \code{/\allowbreak{}returns} & Admin, Manager & List of returns \\
+\textsc{get} & \code{/\allowbreak{}returns/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}returnable} & Admin, Manager & What can still be returned from a sale \\
+\textsc{post} & \code{/\allowbreak{}returns/\allowbreak{}customer} & Admin, Manager & Record a return from a customer \\
+\textsc{get} & \code{/\allowbreak{}returns/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}returnable} & Admin, Manager & What can still be returned to the supplier \\
+\textsc{post} & \code{/\allowbreak{}returns/\allowbreak{}supplier} & Admin, Manager & Record a return to a supplier \\
+\textsc{post} & \code{/\allowbreak{}returns/\allowbreak{}:id/\allowbreak{}cancel} & Admin, Manager & Cancel a return saved by mistake \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Reports and Audit Log}} \\
+\textsc{get} & \code{/\allowbreak{}reports/\allowbreak{}sales} & Admin, Manager & Sales totals for a date range \\
+\textsc{get} & \code{/\allowbreak{}reports/\allowbreak{}purchases} & Admin, Manager & Purchase totals for a date range \\
+\textsc{get} & \code{/\allowbreak{}reports/\allowbreak{}stock-value} & Admin, Manager & Value of the current stock \\
+\textsc{get} & \code{/\allowbreak{}reports/\allowbreak{}profit} & Admin, Manager & Revenue, cost and profit \\
+\textsc{get} & \code{/\allowbreak{}audit-logs} & Admin & Who did what and when \\
+\addlinespace
+\bottomrule
+\end{longtable}
+
+\section{Testing with Postman}
+\subsection{Test environment}
+The tests create products, sales and users. To keep the real data safe, the backend is started with a separate command for testing:
+\begin{lstlisting}[style=query]
+cd server
+pnpm dev:apitest
+\end{lstlisting}
+This runs the same backend code, but connected to the database \code{stockpilot\_api\_test} and on port 5050. Two test users (an Administrator and a Staff user) are created in that database. The real database is not touched.
+
+\subsection{The Postman collection}
+The collection file is \code{docs/api/StockPilot-API.postman\_collection.json}. It has 92 requests in 10 folders.
+\begin{itemize}
+  \item \textbf{Variables.} \code{baseUrl} holds the server address. The login requests save the tokens in variables, and every later request sends the token automatically.
+  \item \textbf{Chained requests.} When a product, sale or purchase is created, its id is saved in a variable and used by the next requests. So the requests run in order, like a real working day.
+  \item \textbf{Automatic checks.} Every request has a test script that checks the status code and the \code{success} field. Many requests also check values, for example the stock or the amount that is still due.
+  \item \textbf{Negative tests.} 29 requests are expected to fail. They show that validation, role checks and business rules work.
+\end{itemize}
+The test script of request T22 (Create product):
+\begin{lstlisting}[style=query]
+pm.test("status is 201", () => pm.response.to.have.status(201));
+let json = pm.response.json();
+pm.test("success is true", () => pm.expect(json.success).to.eql(true));
+pm.test("productId is saved", () => {
+  pm.collectionVariables.set("productId", json.data._id);
+});
+pm.test("new product has zero stock", () =>
+  pm.expect(json.data.currentStock).to.eql(0));
+\end{lstlisting}
+
+\subsection{How to run}
+\begin{enumerate}
+  \item Start the test server with \code{pnpm dev:apitest}.
+  \item In Postman choose \emph{Import} and select the collection file.
+  \item Open the collection, choose \emph{Run collection} and press \emph{Start run}.
+  \item Postman runs all requests in order and shows every check as PASS or FAIL.
+\end{enumerate}
+
+\section{Test Cases}
+In the tables, a name such as \code{:productId} stands for the id that an earlier request saved, and \code{N} stands for the number of the run. \emph{Sent as} shows whose token is used.
+
+\subsection{Health and Login}
+The server is checked first. Then the Administrator and a Staff user log in, and Postman saves their tokens for all later requests.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T01 & \textsc{get} \code{/\allowbreak{}health} & No token & 200 & Health check. No token is needed. It shows that the server is running. \\
+T02 & \textsc{post} \code{/\allowbreak{}auth/\allowbreak{}login} & No token & 401 & Login with a wrong password. A wrong password is refused. \\
+T03 & \textsc{post} \code{/\allowbreak{}auth/\allowbreak{}login} & No token & 200 & Login as Administrator. The response contains a JWT token. Postman saves it in the variable token. \\
+T04 & \textsc{post} \code{/\allowbreak{}auth/\allowbreak{}login} & No token & 200 & Login as Staff. The Staff token is used later to show that Staff cannot do manager work. \\
+T05 & \textsc{get} \code{/\allowbreak{}auth/\allowbreak{}me} & Admin & 200 & Who am I. Returns the user that owns the token. \\
+T06 & \textsc{get} \code{/\allowbreak{}products} & No token & 401 & Request without a token. Every protected route refuses a request that has no token. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Categories and Brands}
+Master data that a product needs.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T07 & \textsc{post} \code{/\allowbreak{}categories} & Admin & 201 & Create category. \\
+T08 & \textsc{post} \code{/\allowbreak{}categories} & Admin & 409 & Create the same category again. A category name must be unique. \\
+T09 & \textsc{post} \code{/\allowbreak{}categories} & Admin & 400 & Create category without a name. Validation: the name is required. \\
+T10 & \textsc{get} \code{/\allowbreak{}categories} & Admin & 200 & List categories. \\
+T11 & \textsc{patch} \code{/\allowbreak{}categories/\allowbreak{}:categoryId} & Admin & 200 & Update category. \\
+T12 & \textsc{post} \code{/\allowbreak{}brands} & Admin & 201 & Create brand. \\
+T13 & \textsc{get} \code{/\allowbreak{}brands} & Admin & 200 & List brands. \\
+T14 & \textsc{patch} \code{/\allowbreak{}brands/\allowbreak{}:brandId} & Admin & 200 & Update brand. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Suppliers and Customers}
+The people the shop buys from and sells to.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T15 & \textsc{post} \code{/\allowbreak{}suppliers} & Admin & 201 & Create supplier. \\
+T16 & \textsc{get} \code{/\allowbreak{}suppliers?\allowbreak{}search=\allowbreak{}Test Supplier N} & Admin & 200 & Search suppliers. \\
+T17 & \textsc{patch} \code{/\allowbreak{}suppliers/\allowbreak{}:supplierId} & Admin & 200 & Update supplier. \\
+T18 & \textsc{post} \code{/\allowbreak{}customers} & Admin & 201 & Create customer. \\
+T19 & \textsc{post} \code{/\allowbreak{}customers} & Admin & 400 & Create customer with a bad email. Validation: the email format is checked. \\
+T20 & \textsc{get} \code{/\allowbreak{}customers?\allowbreak{}search=\allowbreak{}Test Customer N} & Admin & 200 & Search customers. \\
+T21 & \textsc{patch} \code{/\allowbreak{}customers/\allowbreak{}:customerId} & Admin & 200 & Update customer. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Products}
+A new product starts with zero stock. Stock only changes through purchases, sales, returns and adjustments.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T22 & \textsc{post} \code{/\allowbreak{}products} & Admin & 201 & Create product. \\
+T23 & \textsc{post} \code{/\allowbreak{}products} & Admin & 409 & Create product with the same SKU. The unique index on SKU stops duplicates. \\
+T24 & \textsc{post} \code{/\allowbreak{}products} & Staff & 403 & Create product as Staff. Role check: only an Administrator or a Manager can create products. \\
+T25 & \textsc{get} \code{/\allowbreak{}products?\allowbreak{}search=\allowbreak{}PM-N\&\allowbreak{}limit=\allowbreak{}5} & Admin & 200 & Search products. \\
+T26 & \textsc{get} \code{/\allowbreak{}products/\allowbreak{}:productId} & Admin & 200 & Get product by id. \\
+T27 & \textsc{get} \code{/\allowbreak{}products/\allowbreak{}000000000000000000000000} & Admin & 404 & Get a product that does not exist. \\
+T28 & \textsc{patch} \code{/\allowbreak{}products/\allowbreak{}:productId} & Admin & 200 & Update product price. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Purchases and Supplier Payments}
+A purchase is first a draft. Completing it adds the stock. Payments to the supplier are recorded after that.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T29 & \textsc{post} \code{/\allowbreak{}purchases} & Admin & 201 & Create purchase draft. \\
+T30 & \textsc{post} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}payments} & Admin & 409 & Pay a draft purchase. A draft cannot be paid. \\
+T31 & \textsc{post} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}complete} & Admin & 200 & Complete purchase. Stock goes from 0 to 20 inside one transaction. \\
+T32 & \textsc{post} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}complete} & Admin & 409 & Complete the same purchase again. Stock cannot be added twice. \\
+T33 & \textsc{post} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}payments} & Admin & 201 & Pay supplier 4000. \\
+T34 & \textsc{post} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}payments} & Admin & 409 & Pay more than is owed. Overpayment is refused. \\
+T35 & \textsc{get} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}payments} & Admin & 200 & Payment history of the purchase. \\
+T36 & \textsc{get} \code{/\allowbreak{}purchases?\allowbreak{}status=\allowbreak{}COMPLETED\&\allowbreak{}limit=\allowbreak{}5} & Admin & 200 & List purchases. \\
+T37 & \textsc{get} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId} & Admin & 200 & Get purchase by id. \\
+T38 & \textsc{post} \code{/\allowbreak{}purchases} & Admin & 201 & Create a second draft. \\
+T39 & \textsc{post} \code{/\allowbreak{}purchases/\allowbreak{}:draftPurchaseId/\allowbreak{}cancel} & Admin & 200 & Cancel the draft purchase. \\
+T40 & \textsc{post} \code{/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}cancel} & Admin & 409 & Cancel a completed purchase. Only a draft can be cancelled. \\
+T41 & \textsc{get} \code{/\allowbreak{}purchases} & Staff & 403 & List purchases as Staff. Role check: Staff cannot see purchases. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Inventory}
+Manual stock changes and the stock history.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T42 & \textsc{post} \code{/\allowbreak{}inventory/\allowbreak{}adjustments} & Admin & 201 & Record one damaged unit. Stock goes from 20 to 19. \\
+T43 & \textsc{post} \code{/\allowbreak{}inventory/\allowbreak{}adjustments} & Admin & 409 & Remove more than the stock. Stock can never go below zero. \\
+T44 & \textsc{get} \code{/\allowbreak{}inventory/\allowbreak{}movements?\allowbreak{}productId=\allowbreak{}:productId} & Admin & 200 & Stock history of the product. \\
+T45 & \textsc{get} \code{/\allowbreak{}inventory/\allowbreak{}alerts} & Admin & 200 & Low stock alerts. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Sales and Customer Payments}
+A sale is first a draft. Completing it reduces the stock. A named customer can pay later; a walk-in sale is paid at once.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T46 & \textsc{post} \code{/\allowbreak{}sales} & Staff & 201 & Create sale draft for a customer. Sent with the Staff token: Staff can sell. The price is taken from the product, not from the request. \\
+T47 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}complete} & Staff & 200 & Complete sale. Stock goes from 19 to 17. \\
+T48 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}payments} & Staff & 201 & Customer pays 500. \\
+T49 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}payments} & Admin & 409 & Customer pays more than the due. Overpayment is refused. \\
+T50 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}payments} & Admin & 400 & Payment with a wrong method. Validation: the method must be one of the allowed values. \\
+T51 & \textsc{get} \code{/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}payments} & Admin & 200 & Payment history of the sale. \\
+T52 & \textsc{post} \code{/\allowbreak{}sales} & Admin & 201 & Create a sale that is larger than the stock. A draft does not reserve stock, so it can be saved. \\
+T53 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:bigSaleId/\allowbreak{}complete} & Admin & 409 & Complete the oversized sale. Not enough stock: the whole transaction is rolled back. \\
+T54 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:bigSaleId/\allowbreak{}cancel} & Staff & 403 & Cancel a draft sale as Staff. Role check: only an Administrator or a Manager can cancel. \\
+T55 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:bigSaleId/\allowbreak{}cancel} & Admin & 200 & Cancel the draft sale. \\
+T56 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}cancel} & Admin & 409 & Cancel a completed sale. A completed sale needs a return instead. \\
+T57 & \textsc{post} \code{/\allowbreak{}sales} & Admin & 201 & Create walk-in sale. \\
+T58 & \textsc{post} \code{/\allowbreak{}sales/\allowbreak{}:walkInSaleId/\allowbreak{}complete} & Admin & 200 & Complete walk-in sale. Stock goes from 17 to 16. The full amount is recorded as paid. \\
+T59 & \textsc{get} \code{/\allowbreak{}sales?\allowbreak{}status=\allowbreak{}COMPLETED\&\allowbreak{}limit=\allowbreak{}5} & Admin & 200 & List sales. \\
+T60 & \textsc{get} \code{/\allowbreak{}sales/\allowbreak{}:saleId} & Admin & 200 & Get sale by id. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Returns}
+Products that a customer brings back, or that are sent back to a supplier. A return saved by mistake can be cancelled.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T61 & \textsc{get} \code{/\allowbreak{}returns/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}returnable} & Admin & 200 & What can be returned from the sale. \\
+T62 & \textsc{post} \code{/\allowbreak{}returns/\allowbreak{}customer} & Admin & 201 & Customer returns one unit. Stock goes from 16 to 17, and the customer owes 800 less. \\
+T63 & \textsc{post} \code{/\allowbreak{}returns/\allowbreak{}customer} & Admin & 400 & Return without a reason. Validation: a reason is required. \\
+T64 & \textsc{post} \code{/\allowbreak{}returns/\allowbreak{}:returnId/\allowbreak{}cancel} & Admin & 200 & Cancel the customer return. Stock goes back to 16 and the due goes back to 1100. \\
+T65 & \textsc{post} \code{/\allowbreak{}returns/\allowbreak{}:returnId/\allowbreak{}cancel} & Admin & 409 & Cancel the same return again. \\
+T66 & \textsc{get} \code{/\allowbreak{}returns/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}returnable} & Admin & 200 & What can be returned from the purchase. \\
+T67 & \textsc{post} \code{/\allowbreak{}returns/\allowbreak{}supplier} & Admin & 201 & Return one unit to the supplier. Stock goes from 16 to 15, and 500 less is owed to the supplier. \\
+T68 & \textsc{get} \code{/\allowbreak{}returns?\allowbreak{}kind=\allowbreak{}CUSTOMER\&\allowbreak{}limit=\allowbreak{}5} & Admin & 200 & List returns. \\
+T69 & \textsc{get} \code{/\allowbreak{}products/\allowbreak{}:productId} & Admin & 200 & Final stock of the product. 0 + 20 (purchase) - 1 (damaged) - 2 (sale) - 1 (walk-in) + 1 (return) - 1 (return cancelled) - 1 (supplier return) = 15. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Payments, Reports and Audit Log}
+Read-only routes for managers.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T70 & \textsc{get} \code{/\allowbreak{}payments?\allowbreak{}limit=\allowbreak{}5} & Admin & 200 & All customer payments. \\
+T71 & \textsc{get} \code{/\allowbreak{}reports/\allowbreak{}sales?\allowbreak{}from=\allowbreak{}2026-01-01\&\allowbreak{}to=\allowbreak{}2030-12-31} & Admin & 200 & Sales report. \\
+T72 & \textsc{get} \code{/\allowbreak{}reports/\allowbreak{}sales?\allowbreak{}from=\allowbreak{}yesterday} & Admin & 400 & Sales report with a bad date. Validation: dates must be YYYY-MM-DD. \\
+T73 & \textsc{get} \code{/\allowbreak{}reports/\allowbreak{}purchases} & Admin & 200 & Purchases report. \\
+T74 & \textsc{get} \code{/\allowbreak{}reports/\allowbreak{}stock-value} & Admin & 200 & Stock value report. \\
+T75 & \textsc{get} \code{/\allowbreak{}reports/\allowbreak{}profit} & Admin & 200 & Profit report. \\
+T76 & \textsc{get} \code{/\allowbreak{}reports/\allowbreak{}sales} & Staff & 403 & Reports as Staff. Role check: Staff cannot see reports. \\
+T77 & \textsc{get} \code{/\allowbreak{}audit-logs?\allowbreak{}limit=\allowbreak{}5} & Admin & 200 & Audit log. \\
+T78 & \textsc{get} \code{/\allowbreak{}audit-logs} & Staff & 403 & Audit log as Staff. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Users and Accounts}
+Only the Administrator manages users. The last requests use a user that was created in this run, so no real account is changed.
+
+\begin{longtable}{@{}P{0.7cm}P{5.0cm}P{1.3cm}P{1.15cm}P{5.75cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Request} & \textbf{Sent as} & \textbf{Status} & \textbf{What it shows} \\
+\midrule
+\endhead
+T79 & \textsc{get} \code{/\allowbreak{}users} & Admin & 200 & List users. \\
+T80 & \textsc{get} \code{/\allowbreak{}users} & Staff & 403 & List users as Staff. \\
+T81 & \textsc{post} \code{/\allowbreak{}users} & Admin & 201 & Create user. \\
+T82 & \textsc{post} \code{/\allowbreak{}users} & Admin & 400 & Create user with a short password. Validation: at least 8 characters. \\
+T83 & \textsc{post} \code{/\allowbreak{}users} & Admin & 409 & Create user with the same email. \\
+T84 & \textsc{patch} \code{/\allowbreak{}users/\allowbreak{}:newUserId} & Admin & 200 & Change the role of the user. \\
+T85 & \textsc{patch} \code{/\allowbreak{}accounts/\allowbreak{}:newUserId/\allowbreak{}profile} & Admin & 200 & Change the name of the user. \\
+T86 & \textsc{post} \code{/\allowbreak{}accounts/\allowbreak{}:newUserId/\allowbreak{}reset-password} & Admin & 200 & Set a temporary password. \\
+T87 & \textsc{post} \code{/\allowbreak{}auth/\allowbreak{}login} & No token & 200 & New user logs in. \\
+T88 & \textsc{post} \code{/\allowbreak{}users/\allowbreak{}change-password} & New user & 200 & New user changes the password. \\
+T89 & \textsc{post} \code{/\allowbreak{}users/\allowbreak{}change-password} & New user & 401 & Change password with a wrong current password. \\
+T90 & \textsc{post} \code{/\allowbreak{}accounts/\allowbreak{}change-email} & New user & 200 & New user changes the email. \\
+T91 & \textsc{patch} \code{/\allowbreak{}users/\allowbreak{}:newUserId} & Admin & 200 & Deactivate the user. \\
+T92 & \textsc{get} \code{/\allowbreak{}auth/\allowbreak{}me} & New user & 401 & Deactivated user uses the old token. The token is still valid, but the server checks the user on every request. \\
+\bottomrule
+\end{longtable}
+
+\section{Sample Requests and Responses}
+Long values are shortened with three dots.
+
+\subsection*{Login (T03)}
+\begin{lstlisting}[style=query]
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@stockpilot.test",
+  "password": "AdminPass123"
+}
+\end{lstlisting}
+\begin{lstlisting}[style=result]
+200 OK
+
+{
+  "success": true,
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "_id": "6af9...",
+    "name": "Test Admin",
+    "email": "admin@stockpilot.test",
+    "role": "ADMINISTRATOR",
+    "isActive": true
+  }
+}
+\end{lstlisting}
+The password hash is never part of the answer.
+
+\subsection*{Create product (T22)}
+\begin{lstlisting}[style=query]
+POST /api/v1/products
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Test Product 482913",
+  "sku": "PM-482913",
+  "category": "<category id>",
+  "brand": "<brand id>",
+  "purchasePrice": 500,
+  "sellingPrice": 750,
+  "minStockLevel": 5,
+  "unit": "pcs"
+}
+\end{lstlisting}
+The answer is \code{201 Created} with the new product in \code{data}. Its \code{currentStock} is 0.
+
+\subsection*{Request without a token (T06)}
+\begin{lstlisting}[style=result]
+401 Unauthorized
+
+{ "success": false, "message": "Not authorized, token missing" }
+\end{lstlisting}
+
+\subsection*{Staff tries to create a product (T24)}
+\begin{lstlisting}[style=result]
+403 Forbidden
+
+{ "success": false, "message": "You do not have permission for this action" }
+\end{lstlisting}
+
+\subsection*{Completing a sale that is larger than the stock (T53)}
+\begin{lstlisting}[style=result]
+409 Conflict
+
+{ "success": false, "message": "Not enough stock for Test Product 482913" }
+\end{lstlisting}
+
+\section{Test Result}
+The whole collection was run with the Postman Collection Runner on 15 November 2026.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+Requests sent & 92 \\
+Automatic checks & 217 \\
+Checks passed & 217 \\
+Checks failed & 0 \\
+Errors & 0 \\
+Duration & 44 seconds \\
+Average response time & 393 ms \\
+\bottomrule
+\end{tabular}
+\caption{Result of the Postman run}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Expected status} & \textbf{Requests} \\
+\midrule
+200 & 47 \\
+201 & 16 \\
+400 & 6 \\
+401 & 4 \\
+403 & 6 \\
+404 & 1 \\
+409 & 12 \\
+\midrule
+Total & 92 \\
+\bottomrule
+\end{tabular}
+\caption{Requests by expected status code}
+\end{table}
+
+Test T69 checks the whole stock calculation in one number. The product starts at 0. After a purchase (+20), a damaged unit (-1), a sale (-2), a walk-in sale (-1), a customer return (+1), the cancelling of that return (-1) and a return to the supplier (-1), the stock must be 15. The API returned 15.
+
+Besides the Postman tests, the money features (walk-in payment, cancelling a return, supplier payments) have integration tests that run against a real MongoDB database. The command is \code{pnpm test:integration}. These 8 tests also passed. Two of them send two requests at the same moment and confirm that only one succeeds.
+
+\textbf{Conclusion.} The backend is complete. All 55 routes are covered by at least one test, and all 217 checks passed. The next step is to connect the frontend to these APIs.
+
+\end{document}
