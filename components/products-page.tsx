@@ -478,10 +478,10 @@ function ProductModal({
                 .map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}
             </select>
           </Field>
-          <Field label="Purchase price ($)">
+          <Field label="Purchase price (৳)">
             <input type="number" min="0" className={inputClass} value={form.purchasePrice} onChange={setField('purchasePrice')} />
           </Field>
-          <Field label="Selling price ($) *">
+          <Field label="Selling price (৳) *">
             <input type="number" min="0" className={inputClass} value={form.sellingPrice} onChange={setField('sellingPrice')} />
           </Field>
           <Field label="Minimum stock">

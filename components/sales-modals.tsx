@@ -106,7 +106,7 @@ export function PaymentModal({
           <div className="flex justify-between font-semibold"><span>Outstanding</span><span>{formatMoney(sale.outstandingAmount)}</span></div>
         </div>
 
-        <Field label="Amount ($) *">
+        <Field label="Amount (৳) *">
           <div className="flex gap-2">
             <input type="number" min="0" className={inputClass} value={amount} onChange={(event) => setAmount(event.target.value)} />
             <button

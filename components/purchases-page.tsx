@@ -476,7 +476,7 @@ function NewPurchaseModal({
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Discount ($)">
+          <Field label="Discount (৳)">
             <input type="number" min="0" className={inputClass} value={discount} onChange={(event) => setDiscount(event.target.value)} />
           </Field>
           <Field label="Notes (optional)">

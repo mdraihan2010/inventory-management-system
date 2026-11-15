@@ -1,0 +1,322 @@
+% Frontend Development: Inventory Management System (StockPilot)
+% Compile with: pdflatex frontend.tex   (run twice for the table of contents)
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{amssymb}
+\usepackage{upquote}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{float}
+% A screenshot is shown when the file exists in the screenshots folder. Otherwise a frame marks its place
+\newcommand{\screenshot}[2]{%
+  \begin{figure}[H]\centering
+  \IfFileExists{screenshots/#1}{\fbox{\includegraphics[width=0.97\textwidth]{screenshots/#1}}}%
+  {\fbox{\parbox[c][4.2cm][c]{0.9\textwidth}{\centering Screenshot to add:\\[0.3em] \texttt{screenshots/#1}}}}
+  \caption{#2}
+  \end{figure}}
+\usepackage{needspace}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Inventory Management System}
+\fancyhead[R]{Frontend Development}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14pt}
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{0pt}
+\setlist{itemsep=0.15em, topsep=0.3em}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\definecolor{querybg}{HTML}{F1F4F8}
+\definecolor{rule}{HTML}{B8C0CC}
+\lstdefinestyle{query}{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{querybg}, columns=fullflexible,
+  keepspaces=true, breaklines=true, showstringspaces=false, frame=single, rulecolor=\color{querybg},
+  framesep=5pt, xleftmargin=6pt, xrightmargin=6pt, aboveskip=0.6em, belowskip=0.6em
+}
+\lstdefinestyle{result}{
+  basicstyle=\ttfamily\footnotesize, columns=fullflexible, keepspaces=true, breaklines=true,
+  showstringspaces=false, frame=leftline, framerule=1.5pt, rulecolor=\color{rule},
+  framesep=8pt, xleftmargin=12pt, aboveskip=0.3em, belowskip=0.8em
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\LARGE\bfseries Inventory Management System\par}
+  \vspace{0.4cm}
+  {\Large Using MERN Stack\par}
+  \vspace{1.5cm}
+  {\Large\bfseries Step 4: Frontend Development\par}
+  \vspace{0.4cm}
+  {\large User Interface and\\ Connection with the Backend\par}
+  \vfill
+  {\large Web Engineering Lab Project\par}
+  \vspace{0.3cm}
+  {\large Jashore University of Science and Technology\par}
+  \vspace{2cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+This document covers the fourth step of the project, \textbf{Frontend Development}. It has two parts:
+\begin{enumerate}
+  \item \textbf{Develop the frontend:} the pages that the user sees and uses in the browser.
+  \item \textbf{Connect it with the backend:} every page loads and saves its data through the REST API of Step 3. The frontend never talks to the database directly.
+\end{enumerate}
+The frontend has 14 pages and a login screen. It uses 52 of the 55 API routes of the backend.
+
+\section{Technology}
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{@{}P{3.6cm}Y@{}}
+\toprule
+\textbf{Tool} & \textbf{Use in the project} \\
+\midrule
+React 19 & Builds the user interface from components \\
+Next.js 16 (App Router) & React framework: project structure, build and deployment \\
+TypeScript & JavaScript with types, so many mistakes are found while writing the code \\
+Tailwind CSS 4 & Styling with small utility classes \\
+lucide-react & Icons \\
+Fetch API & Sends HTTP requests to the backend (built into the browser) \\
+\bottomrule
+\end{tabularx}
+\caption{Technology of the frontend}
+\end{table}
+
+\section{Structure of the Frontend}
+\subsection{Folders}
+\begin{lstlisting}[style=query]
+app/
+  layout.tsx        page title and global styles
+  page.tsx          the dashboard shell: sidebar, top bar, and the open page
+  globals.css       Tailwind CSS and the design of the whole site
+components/
+  auth-gate.tsx     login, session check, forced password change
+  *-page.tsx        one file for each page (products-page.tsx, sales-page.tsx ...)
+  *-modals.tsx      the forms and detail windows of a page
+  *-shared.ts       types and small helpers shared by a page and its modals
+  product-picker.tsx   search box that finds products on the server
+  invoice-print.tsx    printable invoice of a sale
+  sales-trend-chart.tsx  7-day sales chart drawn with SVG
+lib/
+  api.ts            the only place that talks to the backend
+  csv.ts            CSV export
+  money.ts          money format
+\end{lstlisting}
+
+\subsection{How the screens fit together}
+The website is a single-page application. The browser loads it once, and after that only data is exchanged with the backend.
+\begin{enumerate}
+  \item \textbf{AuthGate} (\code{auth-gate.tsx}) is the outer layer. If there is no valid token it shows the login form. If the user must change a temporary password, it shows that form first.
+  \item \textbf{Dashboard shell} (\code{app/page.tsx}) shows the sidebar with the menu, the top bar and the page that is open.
+  \item \textbf{Page components} (\code{products-page.tsx}, \code{sales-page.tsx} and others) load their own data from the API and show tables, filters and buttons.
+  \item \textbf{Modal components} hold the forms (new sale, new product, record payment) and the detail windows.
+\end{enumerate}
+The layout also works on a phone: the sidebar becomes a menu that opens and closes. A light and a dark theme are available.
+
+\section{Pages}
+\begin{longtable}{@{}P{2.7cm}P{1.9cm}P{3.4cm}P{6.3cm}@{}}
+\toprule
+\textbf{Page} & \textbf{Menu} & \textbf{Who} & \textbf{What the user can do} \\
+\midrule
+\endhead
+Login & - & Everyone & Sign in. A new user must change the temporary password first. \\
+Dashboard & Overview & All roles & Total products, sales of today and of the month, total due, a 7-day sales chart, recent sales and low stock alerts. \\
+Products & Catalog & All roles read; Admin and Manager edit & Product list with search, filters and pages. Add, edit, activate or deactivate a product. Export to CSV. \\
+Categories, Brands & Catalog & All roles read; Admin and Manager edit & Lists of categories and brands. Add, edit, activate or deactivate. \\
+Inventory & Operations & All roles read; Admin and Manager adjust & Stock of every product, low stock and out of stock filters, stock history, manual stock adjustment. \\
+Purchases & Operations & Admin and Manager & Create a purchase draft, complete or cancel it, pay the supplier, see the payment history. \\
+Sales & Operations & All roles; only Admin and Manager cancel & Create a sale draft, complete it, record payments, print an invoice, export to CSV. \\
+Customers & People & All roles read and add; Admin and Manager edit & Customer list with search. Add or edit a customer and see the sales of a customer. \\
+Suppliers & People & All roles read; Admin and Manager edit & Supplier list with search. Add or edit a supplier and see the purchases from a supplier. \\
+Returns & Finance & Admin and Manager & Record a return from a customer or to a supplier. Cancel a return saved by mistake. \\
+Payments \& Dues & Finance & Admin and Manager & All customer payments, customers who still owe money, and money owed to suppliers. \\
+Reports & Finance & Admin and Manager & Sales, purchases, stock value and profit for a chosen date range. \\
+User Management & System & Admin & Create users, change roles, activate or deactivate, set a temporary password. \\
+Audit Log & System & Admin & Who did what and when, with a filter by area. \\
+Account settings & Top bar & All roles & A user changes their own email or password. \\
+\bottomrule
+\end{longtable}
+
+\section{Connecting the Frontend with the Backend}
+\subsection{The address of the backend}
+The frontend reads the backend address from one environment variable. So the same code works on a local computer and on the internet; only the value changes.
+\begin{lstlisting}[style=query]
+# local computer (.env.local)
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
+
+# Vercel (Environment Variables)
+NEXT_PUBLIC_API_BASE_URL=https://<render-service>.onrender.com/api/v1
+\end{lstlisting}
+
+\subsection{One function for all requests}
+All requests go through the function \code{apiRequest} in \code{lib/api.ts}. No page uses \code{fetch} directly. The function does four things:
+\begin{enumerate}
+  \item It adds the backend address in front of the path.
+  \item It adds the token to the \code{Authorization} header.
+  \item It turns the body into JSON and reads the JSON answer.
+  \item It turns every failed answer into an \code{ApiError} with the message of the server, so each page can show the reason to the user.
+\end{enumerate}
+\begin{lstlisting}[style=query]
+export async function apiRequest<T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+
+  const token = getToken()                       // read from sessionStorage
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body !== undefined
+        ? JSON.stringify(options.body)
+        : undefined,
+    })
+  } catch {
+    throw new ApiError('Cannot reach the server. Please check ...', 0)
+  }
+
+  const data = await response.json().catch(() => null)
+  if (response.status === 401 && token) clearToken()   // expired or invalid token
+
+  if (!response.ok) {
+    const message = data?.message || `Request failed with status ${response.status}`
+    throw new ApiError(message, response.status)
+  }
+  return data as T
+}
+\end{lstlisting}
+The listing is slightly shortened. A page uses it like this:
+\begin{lstlisting}[style=query]
+// load the list
+const response = await apiRequest<ProductsResponse>(
+  `/products?${params.toString()}`
+)
+setProducts(response.data)
+
+// save a new product
+await apiRequest('/products', { method: 'POST', body: payload })
+\end{lstlisting}
+
+\subsection{Login and the token}
+\begin{enumerate}
+  \item The login form sends email and password to \code{POST /auth/login}.
+  \item The backend answers with a JWT token. The frontend saves it in \code{sessionStorage}, so it is removed when the browser tab is closed.
+  \item Every later request sends the token automatically (see \code{apiRequest}).
+  \item When the page is opened again, \code{AuthGate} asks \code{GET /auth/me} to check that the saved token is still valid.
+  \item If the backend answers 401, the token is deleted and the user is sent back to the login form.
+\end{enumerate}
+
+\subsection{Roles in the user interface}
+After login the frontend knows the role of the user. Buttons such as \emph{Add product} are shown only to an Administrator or a Manager, and pages such as Purchases explain to a Staff user that there is no permission.
+
+This is only for a clear user interface. The real protection is in the backend: even if someone sends the request by hand, the backend answers 403 (shown by tests T24, T41 and T54 of Step 3).
+
+\subsection{CORS}
+The frontend and the backend run on different addresses. A browser blocks such requests unless the backend allows them. The backend allows exactly one frontend address, which is set in its environment variable \code{CLIENT\_URL}.
+
+\subsection{Example: one action from click to database}
+A Staff user presses \emph{Complete} on a draft sale.
+\begin{enumerate}
+  \item \code{sales-page.tsx} calls \code{apiRequest('/sales/<id>/complete', \{ method: 'POST' \})}.
+  \item The browser sends \code{POST /api/v1/sales/<id>/complete} with the token to the backend.
+  \item The backend checks the token and the role, and then runs a database transaction: the stock of each product is reduced, the stock history is written, and the sale becomes COMPLETED.
+  \item The backend answers \code{200} with the updated sale.
+  \item The page loads the list again and shows the new status. If the stock was too low, the backend answers \code{409} and the page shows the message \emph{Not enough stock for ...}.
+\end{enumerate}
+
+\section{Which Page Uses Which API}
+\begin{longtable}{@{}P{3.1cm}P{11.9cm}@{}}
+\toprule
+\textbf{Page} & \textbf{API routes that the page calls} \\
+\midrule
+\endhead
+Login & {\raggedright \textsc{post}~\code{/\allowbreak{}auth/\allowbreak{}login}, \textsc{get}~\code{/\allowbreak{}auth/\allowbreak{}me}, \textsc{post}~\code{/\allowbreak{}users/\allowbreak{}change-password}} \\\addlinespace
+Dashboard & {\raggedright \textsc{get}~\code{/\allowbreak{}products}, \textsc{get}~\code{/\allowbreak{}reports/\allowbreak{}sales}, \textsc{get}~\code{/\allowbreak{}reports/\allowbreak{}purchases}, \textsc{get}~\code{/\allowbreak{}sales}, \textsc{get}~\code{/\allowbreak{}inventory/\allowbreak{}alerts}} \\\addlinespace
+Products & {\raggedright \textsc{get}~\code{/\allowbreak{}products}, \textsc{post}~\code{/\allowbreak{}products}, \textsc{patch}~\code{/\allowbreak{}products/\allowbreak{}:id}, \textsc{get}~\code{/\allowbreak{}categories}, \textsc{get}~\code{/\allowbreak{}brands}} \\\addlinespace
+Categories, Brands & {\raggedright \textsc{get}~\code{/\allowbreak{}categories}, \textsc{post}~\code{/\allowbreak{}categories}, \textsc{patch}~\code{/\allowbreak{}categories/\allowbreak{}:id}, \textsc{get}~\code{/\allowbreak{}brands}, \textsc{post}~\code{/\allowbreak{}brands}, \textsc{patch}~\code{/\allowbreak{}brands/\allowbreak{}:id}} \\\addlinespace
+Inventory & {\raggedright \textsc{get}~\code{/\allowbreak{}products}, \textsc{get}~\code{/\allowbreak{}inventory/\allowbreak{}alerts}, \textsc{get}~\code{/\allowbreak{}inventory/\allowbreak{}movements}, \textsc{post}~\code{/\allowbreak{}inventory/\allowbreak{}adjustments}} \\\addlinespace
+Purchases & {\raggedright \textsc{get}~\code{/\allowbreak{}purchases}, \textsc{post}~\code{/\allowbreak{}purchases}, \textsc{get}~\code{/\allowbreak{}purchases/\allowbreak{}:id}, \textsc{post}~\code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}complete}, \textsc{post}~\code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}cancel}, \textsc{post}~\code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}payments}, \textsc{get}~\code{/\allowbreak{}purchases/\allowbreak{}:id/\allowbreak{}payments}, \textsc{get}~\code{/\allowbreak{}suppliers}, \textsc{get}~\code{/\allowbreak{}products}} \\\addlinespace
+Sales & {\raggedright \textsc{get}~\code{/\allowbreak{}sales}, \textsc{post}~\code{/\allowbreak{}sales}, \textsc{post}~\code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}complete}, \textsc{post}~\code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}cancel}, \textsc{post}~\code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}payments}, \textsc{get}~\code{/\allowbreak{}sales/\allowbreak{}:id/\allowbreak{}payments}, \textsc{get}~\code{/\allowbreak{}customers}, \textsc{get}~\code{/\allowbreak{}products}} \\\addlinespace
+Customers & {\raggedright \textsc{get}~\code{/\allowbreak{}customers}, \textsc{post}~\code{/\allowbreak{}customers}, \textsc{patch}~\code{/\allowbreak{}customers/\allowbreak{}:id}, \textsc{get}~\code{/\allowbreak{}sales}} \\\addlinespace
+Suppliers & {\raggedright \textsc{get}~\code{/\allowbreak{}suppliers}, \textsc{post}~\code{/\allowbreak{}suppliers}, \textsc{patch}~\code{/\allowbreak{}suppliers/\allowbreak{}:id}, \textsc{get}~\code{/\allowbreak{}purchases}} \\\addlinespace
+Returns & {\raggedright \textsc{get}~\code{/\allowbreak{}returns}, \textsc{get}~\code{/\allowbreak{}returns/\allowbreak{}sales/\allowbreak{}:saleId/\allowbreak{}returnable}, \textsc{get}~\code{/\allowbreak{}returns/\allowbreak{}purchases/\allowbreak{}:purchaseId/\allowbreak{}returnable}, \textsc{post}~\code{/\allowbreak{}returns/\allowbreak{}customer}, \textsc{post}~\code{/\allowbreak{}returns/\allowbreak{}supplier}, \textsc{post}~\code{/\allowbreak{}returns/\allowbreak{}:id/\allowbreak{}cancel}} \\\addlinespace
+Payments \& Dues & {\raggedright \textsc{get}~\code{/\allowbreak{}payments}, \textsc{get}~\code{/\allowbreak{}sales}, \textsc{get}~\code{/\allowbreak{}purchases}, \textsc{get}~\code{/\allowbreak{}reports/\allowbreak{}sales}} \\\addlinespace
+Reports & {\raggedright \textsc{get}~\code{/\allowbreak{}reports/\allowbreak{}sales}, \textsc{get}~\code{/\allowbreak{}reports/\allowbreak{}purchases}, \textsc{get}~\code{/\allowbreak{}reports/\allowbreak{}stock-value}, \textsc{get}~\code{/\allowbreak{}reports/\allowbreak{}profit}} \\\addlinespace
+User Management & {\raggedright \textsc{get}~\code{/\allowbreak{}users}, \textsc{post}~\code{/\allowbreak{}users}, \textsc{patch}~\code{/\allowbreak{}users/\allowbreak{}:id}, \textsc{patch}~\code{/\allowbreak{}accounts/\allowbreak{}:id/\allowbreak{}profile}, \textsc{post}~\code{/\allowbreak{}accounts/\allowbreak{}:id/\allowbreak{}reset-password}} \\\addlinespace
+Audit Log & {\raggedright \textsc{get}~\code{/\allowbreak{}audit-logs}} \\\addlinespace
+Account settings & {\raggedright \textsc{post}~\code{/\allowbreak{}accounts/\allowbreak{}change-email}, \textsc{post}~\code{/\allowbreak{}users/\allowbreak{}change-password}} \\\addlinespace
+\bottomrule
+\end{longtable}
+The three routes that the pages do not call are \code{GET /health} (used to check the server), \code{GET /products/:id} and \code{GET /sales/:id} (the lists already contain these details).
+
+\section{Features for a Good User Experience}
+\begin{itemize}
+  \item \textbf{Search on the server.} The search box waits a short moment after typing and then asks the backend. Only one page of results is loaded, so the site stays fast with more than 10,000 products.
+  \item \textbf{Product search box.} In the sale and purchase forms the product is found by typing a part of its name or SKU. The box can also be used with the keyboard.
+  \item \textbf{Loading and error states.} Every page shows a loading text while it waits, and a clear message when a request fails.
+  \item \textbf{CSV export.} Products and sales can be downloaded as a CSV file. Text that starts with \code{=}, \code{+}, \code{-} or \code{@} is made safe, so a spreadsheet program does not run it as a formula.
+  \item \textbf{Invoice.} A completed sale can be printed as an invoice.
+  \item \textbf{Sales chart.} The dashboard shows the sales of the last seven days. The chart is drawn with SVG, without a chart library.
+  \item \textbf{Sleeping server.} The free backend server sleeps when it is not used. If the first answer takes more than three seconds, the login screen tells the user that the server is waking up.
+\end{itemize}
+
+\section{Deployment}
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{@{}P{2.4cm}P{2.6cm}Y@{}}
+\toprule
+\textbf{Part} & \textbf{Service} & \textbf{Connection setting} \\
+\midrule
+Frontend & Vercel & \code{NEXT\_PUBLIC\_API\_BASE\_URL} = address of the backend \\
+Backend & Render & \code{CLIENT\_URL} = address of the frontend; \code{MONGO\_URI} = address of the database \\
+Database & MongoDB Atlas & Network access and a database user for the backend \\
+\bottomrule
+\end{tabularx}
+\caption{The three parts run on three different services}
+\end{table}
+The three parts are on three different computers in different places, and they work together through these three settings: the browser loads the frontend from Vercel, the frontend calls the backend on Render, and the backend reads and writes the database on Atlas.
+
+\section{Screenshots}
+\screenshot{login.png}{Login page}
+\screenshot{dashboard.png}{Dashboard with live figures from the backend}
+\screenshot{products.png}{Products page: search, filters and pages}
+\screenshot{inventory.png}{Inventory page with stock status}
+\screenshot{purchases.png}{Purchases page with the Outstanding column}
+\screenshot{new-sale.png}{New sale form with the product search box}
+\screenshot{sales.png}{Sales page with payment status}
+\screenshot{payments.png}{Payments and Dues page}
+\screenshot{reports.png}{Reports page}
+\screenshot{users.png}{User Management page (Administrator only; email addresses are blurred)}
+\screenshot{staff-view.png}{A Staff user opens Purchases: the page explains that there is no permission}
+\screenshot{network.png}{Browser DevTools, Network tab: the Products page (port 3000) requests its data from the backend API (port 5000)}
+
+\section{Conclusion}
+The frontend is complete and connected. All 14 pages get their data from the backend through one shared function, the login uses a JWT token, and the user interface follows the role of the user. The next step is integration testing of the whole system.
+
+\end{document}

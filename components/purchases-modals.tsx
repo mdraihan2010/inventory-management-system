@@ -252,7 +252,7 @@ export function SupplierPaymentModal({
         </div>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-gray-700">Amount ($) *</span>
+          <span className="text-sm font-medium text-gray-700">Amount (৳) *</span>
           <div className="flex gap-2">
             <input type="number" min="0" className={inputClass} value={amount} onChange={(event) => setAmount(event.target.value)} />
             <button

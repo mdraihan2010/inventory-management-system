@@ -115,7 +115,7 @@ const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }
 
 function taka(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—'
-  return `$${numberFormat.format(value)}`
+  return `৳${numberFormat.format(value)}`
 }
 
 // The date N days before today, as YYYY-MM-DD in local time
